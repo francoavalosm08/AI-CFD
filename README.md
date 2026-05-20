@@ -9,6 +9,10 @@ Automating CFD with a local browser app for external-aerodynamics runs through F
 - Build a deterministic Foam-Agent prompt and run the Foam-Agent MCP workflow.
 - Show an HTML dashboard with status, run logs, PyVista images, residual/plot files, and downloads.
 
+## Project Handoff And Docs
+
+Fresh LLM/coding-agent pickup instructions are in `AGENTS.md`. The docs index is in `docs/README.md`, with the current next milestone in `docs/PHASE_3_REAL_FOAMAGENT_OPENFOAM_PLAN.md`.
+
 ## Local Non-Docker Development (Windows + Fake Mode)
 
 This workflow avoids Docker for day-to-day development and defaults to fake-mode runs.
