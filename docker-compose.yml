@@ -1,0 +1,36 @@
+services:
+  app:
+    build:
+      context: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      AI_CFD_DATA_ROOT: /app/data
+      FOAM_AGENT_URL: http://foamagent:7860/mcp
+      FOAM_AGENT_MODE: ${FOAM_AGENT_MODE:-mcp}
+      FOAM_AGENT_SHARED_AGENT_ROOT: /workspace/data
+      FOAM_AGENT_AGENT_RUNS_ROOT: /home/openfoam/Foam-Agent/runs
+      FOAMAGENT_MODEL_PROVIDER: ${FOAMAGENT_MODEL_PROVIDER:-openai}
+      FOAMAGENT_MODEL_VERSION: ${FOAMAGENT_MODEL_VERSION:-gpt-5.4}
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      - foamagent
+
+  foamagent:
+    image: leoyue123/foamagent:v2.0.0
+    command: foamagent-mcp --transport http --host 0.0.0.0 --port 7860
+    ports:
+      - "7860:7860"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      FOAMAGENT_MODEL_PROVIDER: ${FOAMAGENT_MODEL_PROVIDER:-openai}
+      FOAMAGENT_MODEL_VERSION: ${FOAMAGENT_MODEL_VERSION:-gpt-5.4}
+    volumes:
+      - ./data:/workspace/data
+      - ./data/foamagent-runs:/home/openfoam/Foam-Agent/runs
