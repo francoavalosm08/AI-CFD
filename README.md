@@ -1,0 +1,2 @@
+# AI-CFD
+automating cfd
