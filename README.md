@@ -1,6 +1,6 @@
-﻿# AI CFD Workbench
+# AI CFD Workbench
 
-Local browser app for external-aerodynamics CFD runs through Foam-Agent and OpenFOAM.
+Automating CFD with a local browser app for external-aerodynamics runs through Foam-Agent and OpenFOAM.
 
 ## What V1 Does
 
