@@ -1,4 +1,4 @@
-﻿[CmdletBinding()]
+[CmdletBinding()]
 param(
     [ValidateSet("backend", "full")]
     [string]$Scope = "full",
@@ -184,6 +184,11 @@ $startedBackend = $false
 $backendJob = $null
 $startedFrontend = $false
 $frontendJob = $null
+$verifyLogRoot = Join-Path $dataRoot "verify-logs"
+New-Item -ItemType Directory -Force -Path $verifyLogRoot | Out-Null
+$backendServerLog = Join-Path $verifyLogRoot "backend-server.log"
+$frontendServerLog = Join-Path $verifyLogRoot "frontend-server.log"
+Remove-Item $backendServerLog, $frontendServerLog -ErrorAction SilentlyContinue
 
 try {
     if ($Scope -eq "full") { Write-Host "Step 4/6: Ensuring fake-mode backend is available at $ApiBaseUrl ..." } else { Write-Host "Step 3/4: Ensuring fake-mode backend is available at $ApiBaseUrl ..." }
@@ -199,14 +204,15 @@ try {
         }
 
         $backendJob = Start-Job -ScriptBlock {
-            param($BackendPath, $DataRoot, $VenvPython, $BindHost, $Port, $PathValue)
+            param($BackendPath, $DataRoot, $VenvPython, $BindHost, $Port, $PathValue, $ServerLog)
             $ErrorActionPreference = "Stop"
             $env:Path = $PathValue
             $env:FOAM_AGENT_MODE = "fake"
             $env:AI_CFD_DATA_ROOT = $DataRoot
             Set-Location $BackendPath
-            & $VenvPython -m uvicorn app.main:app --host $BindHost --port $Port
-        } -ArgumentList $backendPath, $dataRoot, $venvPython, $bindHost, $apiPort, $env:Path
+            $command = '"{0}" -m uvicorn app.main:app --host {1} --port {2} > "{3}" 2>&1' -f $VenvPython, $BindHost, $Port, $ServerLog
+            & cmd /c $command
+        } -ArgumentList $backendPath, $dataRoot, $venvPython, $bindHost, $apiPort, $env:Path, $backendServerLog
         $startedBackend = $true
 
         $deadline = (Get-Date).AddSeconds($BackendStartupTimeoutSeconds)
@@ -241,12 +247,13 @@ try {
             }
 
             $frontendJob = Start-Job -ScriptBlock {
-                param($FrontendPath, $Port, $PathValue)
+                param($FrontendPath, $Port, $PathValue, $ServerLog)
                 $ErrorActionPreference = "Stop"
                 $env:Path = $PathValue
                 Set-Location $FrontendPath
-                & npm run dev -- --host 127.0.0.1 --port $Port
-            } -ArgumentList $frontendPath, $frontendPort, $env:Path
+                $command = 'npm run dev -- --host 127.0.0.1 --port {0} > "{1}" 2>&1' -f $Port, $ServerLog
+                & cmd /c $command
+            } -ArgumentList $frontendPath, $frontendPort, $env:Path, $frontendServerLog
             $startedFrontend = $true
 
             $deadline = (Get-Date).AddSeconds($FrontendStartupTimeoutSeconds)
