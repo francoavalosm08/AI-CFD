@@ -23,13 +23,14 @@ def write_visualization_previews(run_dir: Path) -> list[Path]:
     vtk = _find_latest_case_vtk(run_dir / "case" / "VTK")
     if vtk:
         data = _read_ascii_vtk(vtk)
+        focus_points = _read_focus_points(run_dir / "case" / "VTK")
         if data.points and data.velocity_magnitude:
             path = run_dir / "velocity-magnitude.png"
-            _write_point_plot(path, data.points, data.velocity_magnitude, "Velocity magnitude")
+            _write_point_plot(path, data.points, data.velocity_magnitude, "Velocity magnitude", focus_points=focus_points)
             previews.append(path)
         if data.points and data.pressure:
             path = run_dir / "pressure.png"
-            _write_point_plot(path, data.points, data.pressure, "Pressure")
+            _write_point_plot(path, data.points, data.pressure, "Pressure", focus_points=focus_points)
             previews.append(path)
     return previews
 
@@ -84,6 +85,19 @@ def _find_latest_case_vtk(vtk_dir: Path) -> Path | None:
         key=lambda path: _vtk_time_index(path),
     )
     return candidates[-1] if candidates else None
+
+
+def _read_focus_points(vtk_dir: Path) -> list[tuple[float, float]]:
+    airfoil_dir = vtk_dir / "airfoil"
+    if not airfoil_dir.exists():
+        return []
+    candidates = sorted(
+        (path for path in airfoil_dir.glob("airfoil_*.vtk") if path.is_file()),
+        key=lambda path: _vtk_time_index(path),
+    )
+    if not candidates:
+        return []
+    return _read_ascii_vtk(candidates[-1]).points
 
 
 def _vtk_time_index(path: Path) -> int:
@@ -177,12 +191,19 @@ def _read_ascii_vtk(path: Path) -> _VtkData:
     return data
 
 
-def _write_point_plot(path: Path, points: list[tuple[float, float]], values: list[float], title: str) -> None:
+def _write_point_plot(
+    path: Path,
+    points: list[tuple[float, float]],
+    values: list[float],
+    title: str,
+    *,
+    focus_points: list[tuple[float, float]] | None = None,
+) -> None:
     image = _canvas()
     if not points or not values:
         _write_png(path, image)
         return
-    min_x, max_x, min_y, max_y = _focused_point_window(points)
+    min_x, max_x, min_y, max_y = _focused_point_window(points, focus_points=focus_points)
     min_value, max_value = min(values), max(values)
     for (x, y), value in zip(points, values):
         if not (min_x <= x <= max_x and min_y <= y <= max_y):
@@ -191,12 +212,16 @@ def _write_point_plot(path: Path, points: list[tuple[float, float]], values: lis
         py = _scale(y, min_y, max_y, HEIGHT - MARGIN, MARGIN)
         _draw_disc(image, int(px), int(py), 2, _color_ramp(value, min_value, max_value))
     _draw_axes(image)
-    _draw_text(image, MARGIN, 26, title, (15, 23, 42))
+    _draw_text(image, MARGIN, 24, title, (15, 23, 42), scale=3)
     _draw_text(image, WIDTH - 210, HEIGHT - 18, f"min {min_value:.4g}  max {max_value:.4g}", (71, 85, 105))
     _write_png(path, image)
 
 
-def _focused_point_window(points: list[tuple[float, float]]) -> tuple[float, float, float, float]:
+def _focused_point_window(
+    points: list[tuple[float, float]],
+    *,
+    focus_points: list[tuple[float, float]] | None = None,
+) -> tuple[float, float, float, float]:
     min_x, max_x = min(x for x, _ in points), max(x for x, _ in points)
     min_y, max_y = min(y for _, y in points), max(y for _, y in points)
     span_x = max_x - min_x
@@ -205,10 +230,19 @@ def _focused_point_window(points: list[tuple[float, float]]) -> tuple[float, flo
         return min_x, max_x, min_y, max_y
     if span_x < 8 or span_y < 4:
         return min_x, max_x, min_y, max_y
-    center_x = (min_x + max_x) / 2
-    center_y = (min_y + max_y) / 2
-    width = span_x * 0.38
-    height = span_y * 0.38
+    center_source = focus_points or []
+    center_x = (
+        (min(x for x, _ in center_source) + max(x for x, _ in center_source)) / 2
+        if center_source
+        else (min_x + max_x) / 2
+    )
+    center_y = (
+        (min(y for _, y in center_source) + max(y for _, y in center_source)) / 2
+        if center_source
+        else (min_y + max_y) / 2
+    )
+    width = span_x * 0.38 / 1.2
+    height = span_y * 0.38 / 1.2
     return (
         max(min_x, center_x - width / 2),
         min(max_x, center_x + width / 2),
@@ -273,17 +307,35 @@ def _draw_disc(image: list[bytearray], cx: int, cy: int, radius: int, color: tup
                 _set_pixel(image, x, y, color)
 
 
-def _draw_text(image: list[bytearray], x: int, y: int, text: str, color: tuple[int, int, int]) -> None:
+def _draw_text(
+    image: list[bytearray],
+    x: int,
+    y: int,
+    text: str,
+    color: tuple[int, int, int],
+    *,
+    scale: int = 1,
+) -> None:
     for offset, character in enumerate(text[:48]):
-        _draw_character(image, x + offset * 6, y, character, color)
+        _draw_character(image, x + offset * 6 * scale, y, character, color, scale=scale)
 
 
-def _draw_character(image: list[bytearray], x: int, y: int, character: str, color: tuple[int, int, int]) -> None:
+def _draw_character(
+    image: list[bytearray],
+    x: int,
+    y: int,
+    character: str,
+    color: tuple[int, int, int],
+    *,
+    scale: int = 1,
+) -> None:
     bitmap = _FONT.get(character.upper(), _FONT.get(" ", []))
     for row, bits in enumerate(bitmap):
         for col, bit in enumerate(bits):
             if bit == "1":
-                _set_pixel(image, x + col, y + row, color)
+                for dy in range(scale):
+                    for dx in range(scale):
+                        _set_pixel(image, x + col * scale + dx, y + row * scale + dy, color)
 
 
 def _set_pixel(image: list[bytearray], x: int, y: int, color: tuple[int, int, int]) -> None:
