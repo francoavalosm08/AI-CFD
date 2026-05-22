@@ -49,6 +49,22 @@ gmsh samples\external_box.geo -3 -format msh2 -o .local-data\external_box.msh
 - The run reached `completed` and produced real OpenFOAM logs, residuals, VTK/case outputs, `openfoam-commands.json`, and `openfoam-case.zip`.
 - Because this repo path contains a space (`AI CFD`), the WSL runner stages real execution in `/tmp/ai-cfd-workbench/<run_id>/case` and copies the case back into `.local-data/runs/<run_id>/case` before artifact packaging.
 
+## Latest NACA 4412 Airfoil Acceptance (2026-05-22)
+
+The NACA 4412 validation path is now implemented for local OpenFOAM mode:
+
+- Generate local validation files with `.\scripts\generate-naca4412.ps1 -OutputDir .local-data\naca4412-improved`.
+- The generated `.msh` uses named patches: `airfoil`, `inlet`, `outlet`, `farfield`, `frontAndBack`, and `internal`.
+- Backend case generation detects this patch set as `airfoil_2d`.
+- The runner normalizes imported OpenFOAM patch types after `gmshToFoam`: `frontAndBack` becomes `empty`; `airfoil` becomes `wall`.
+- Boundary conditions are airfoil-specific: no-slip/wall functions on `airfoil`, `empty` on `frontAndBack`, fixed freestream velocity at `inlet`, pressure outlet behavior at `outlet`, and slip/zero-gradient behavior at `farfield`.
+- Run metadata records `chord_length_m=1.0`, `kinematic_viscosity_m2_s=1.5e-5`, `reynolds_number=1666666.666667`, and parsed `checkMesh` summary.
+- The latest real local run used `25 m/s`, `2 deg` angle of attack, `1 m` chord, and reached `completed`.
+- OpenFOAM `checkMesh` passed with `57,292` cells.
+- Required artifacts were present: `checkMesh.log`, `solver.log`, `residuals.csv`, VTK output, `openfoam-case.zip`, and `openfoam-report.html`.
+
+Do not accept future NACA validation runs as successful if `checkMesh` fails or if OpenFOAM reports fewer than `40,000` cells.
+
 ## Recent Work (Phase 3 — 2026-05-22)
 
 A prior agent session implemented most of Phase 3 code and docs. Fake mode was preserved; no API/UI contract changes.

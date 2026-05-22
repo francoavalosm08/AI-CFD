@@ -77,6 +77,16 @@ gmsh samples\external_box.geo -3 -format msh2 -o .local-data\external_box.msh
 
 The backend stages real WSL runs under `/tmp/ai-cfd-workbench/<run_id>/case` and copies the finished case back into `.local-data/runs/<run_id>/case`. This avoids OpenFOAM path issues when the Windows repo path contains spaces.
 
+The repo also includes a generated NACA 4412 validation mesh path for the current airfoil hardening work. It creates `.geo`, `.stl`, and `.msh` files locally, then the backend recognizes the airfoil-specific patch names and writes a 2D OpenFOAM case with `frontAndBack` empty boundaries:
+
+```powershell
+.\scripts\generate-naca4412.ps1 -OutputDir .local-data\naca4412-improved
+.\scripts\dev-openfoam-backend.ps1
+.\scripts\smoke-local-openfoam.ps1 -SampleMeshPath .local-data\naca4412-improved\naca4412.msh -TimeoutSeconds 900
+```
+
+The latest local NACA 4412 acceptance run used `25 m/s`, `2 deg` angle of attack, `1 m` chord, and `nu=1.5e-5 m^2/s` (`Re=1.666666e6`). OpenFOAM `checkMesh` passed with `57,292` cells and generated `checkMesh.log`, `solver.log`, `residuals.csv`, VTK files, `openfoam-case.zip`, and `openfoam-report.html`.
+
 For your own meshes:
 
 ```powershell

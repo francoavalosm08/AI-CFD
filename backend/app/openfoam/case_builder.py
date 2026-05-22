@@ -15,13 +15,15 @@ def build_openfoam_case(*, spec: SimulationSpec, mesh_path: Path, case_dir: Path
         (case_dir / child).mkdir(exist_ok=True)
     shutil.copy2(mesh_path, case_dir / "input.msh")
 
+    physical_names = _read_physical_names(mesh_path)
+    case_type = "airfoil_2d" if {"airfoil", "farfield", "frontAndBack"}.issubset(physical_names) else "generic_external"
     inlet_velocity = _inlet_velocity(spec.velocity, spec.angle_of_attack)
     files = {
-        "0/U": _u_file(inlet_velocity),
-        "0/p": _scalar_field("p", "volScalarField", "0", "[0 2 -2 0 0 0 0]"),
-        "0/k": _scalar_field("k", "volScalarField", "0.01", "[0 2 -2 0 0 0 0]"),
-        "0/omega": _scalar_field("omega", "volScalarField", "1", "[0 0 -1 0 0 0 0]"),
-        "0/nut": _scalar_field("nut", "volScalarField", "0", "[0 2 -1 0 0 0 0]"),
+        "0/U": _u_file(inlet_velocity, case_type),
+        "0/p": _scalar_field("p", "volScalarField", "0", "[0 2 -2 0 0 0 0]", case_type),
+        "0/k": _scalar_field("k", "volScalarField", "0.01", "[0 2 -2 0 0 0 0]", case_type),
+        "0/omega": _scalar_field("omega", "volScalarField", "1", "[0 0 -1 0 0 0 0]", case_type),
+        "0/nut": _scalar_field("nut", "volScalarField", "0", "[0 2 -1 0 0 0 0]", case_type),
         "constant/transportProperties": _transport_properties(),
         "constant/turbulenceProperties": _turbulence_properties(),
         "system/controlDict": _control_dict(spec),
@@ -33,19 +35,27 @@ def build_openfoam_case(*, spec: SimulationSpec, mesh_path: Path, case_dir: Path
 
     manifest = {
         "runner": "local_openfoam",
+        "case_type": case_type,
         "solver": "simpleFoam",
         "mesh": "input.msh",
         "units": spec.units,
         "length_scale": spec.length_scale,
         "velocity": spec.velocity,
         "angle_of_attack": spec.angle_of_attack,
+        "chord_length_m": 1.0 if case_type == "airfoil_2d" else None,
+        "kinematic_viscosity_m2_s": 1.5e-05,
+        "reynolds_number": round(spec.velocity * 1.0 / 1.5e-05, 6) if case_type == "airfoil_2d" else None,
         "inlet_velocity": [round(value, 6) for value in inlet_velocity],
         "files": sorted(["input.msh", *files.keys()]),
         "assumptions": {
             "runner": "local_openfoam",
             "flow": "steady incompressible external aerodynamics",
             "solver": "simpleFoam",
-            "boundary_names": "generic inlet/outlet/wall placeholders; inspect imported mesh patches before real use",
+            "boundary_names": (
+                "2D airfoil patches: inlet, outlet, farfield, airfoil, frontAndBack"
+                if case_type == "airfoil_2d"
+                else "generic inlet/outlet/wall placeholders; inspect imported mesh patches before real use"
+            ),
         },
     }
     (case_dir / "case-manifest.json").write_text(
@@ -59,7 +69,36 @@ def _inlet_velocity(speed: float, angle_degrees: float) -> tuple[float, float, f
     return (speed * math.cos(angle), speed * math.sin(angle), 0)
 
 
-def _u_file(inlet_velocity: tuple[float, float, float]) -> str:
+def _u_file(inlet_velocity: tuple[float, float, float], case_type: str) -> str:
+    if case_type == "airfoil_2d":
+        return f"""{foam_header("volVectorField", "U")}
+dimensions      [0 1 -1 0 0 0 0];
+internalField   uniform {vector(inlet_velocity)};
+boundaryField
+{{
+    inlet
+    {{
+        type            fixedValue;
+        value           uniform {vector(inlet_velocity)};
+    }}
+    outlet
+    {{
+        type            zeroGradient;
+    }}
+    farfield
+    {{
+        type            slip;
+    }}
+    airfoil
+    {{
+        type            noSlip;
+    }}
+    frontAndBack
+    {{
+        type            empty;
+    }}
+}}
+"""
     return f"""{foam_header("volVectorField", "U")}
 dimensions      [0 1 -1 0 0 0 0];
 internalField   uniform {vector(inlet_velocity)};
@@ -86,7 +125,44 @@ boundaryField
 """
 
 
-def _scalar_field(name: str, class_name: str, internal_value: str, dimensions: str) -> str:
+def _scalar_field(name: str, class_name: str, internal_value: str, dimensions: str, case_type: str) -> str:
+    if case_type == "airfoil_2d":
+        airfoil_type = "zeroGradient"
+        if name == "nut":
+            airfoil_type = "nutkWallFunction"
+        elif name == "omega":
+            airfoil_type = "omegaWallFunction"
+        elif name == "k":
+            airfoil_type = "kqRWallFunction"
+        return f"""{foam_header(class_name, name)}
+dimensions      {dimensions};
+internalField   uniform {internal_value};
+boundaryField
+{{
+    inlet
+    {{
+        type            fixedValue;
+        value           uniform {internal_value};
+    }}
+    outlet
+    {{
+        type            zeroGradient;
+    }}
+    farfield
+    {{
+        type            zeroGradient;
+    }}
+    airfoil
+    {{
+        type            {airfoil_type};
+        value           uniform {internal_value};
+    }}
+    frontAndBack
+    {{
+        type            empty;
+    }}
+}}
+"""
     return f"""{foam_header(class_name, name)}
 dimensions      {dimensions};
 internalField   uniform {internal_value};
@@ -111,6 +187,22 @@ boundaryField
     }}
 }}
 """
+
+
+def _read_physical_names(mesh_path: Path) -> set[str]:
+    text = mesh_path.read_text(errors="ignore")
+    names: set[str] = set()
+    in_section = False
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped == "$PhysicalNames":
+            in_section = True
+            continue
+        if stripped == "$EndPhysicalNames":
+            break
+        if in_section and '"' in stripped:
+            names.add(stripped.split('"', 2)[1])
+    return names
 
 
 def _transport_properties() -> str:

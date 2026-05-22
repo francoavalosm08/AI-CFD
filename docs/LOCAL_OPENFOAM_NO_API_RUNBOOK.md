@@ -61,6 +61,24 @@ gmsh samples\external_box.geo -3 -format msh2 -o .local-data\external_box.msh
 .\scripts\smoke-local-openfoam.ps1 -SampleMeshPath .local-data\external_box.msh -TimeoutSeconds 300
 ```
 
+NACA 4412 airfoil validation generator:
+
+```powershell
+.\scripts\generate-naca4412.ps1 -OutputDir .local-data\naca4412-improved
+.\scripts\smoke-local-openfoam.ps1 -SampleMeshPath .local-data\naca4412-improved\naca4412.msh -TimeoutSeconds 900
+```
+
+The NACA generator creates `naca4412.geo`, `naca4412.stl`, and a Gmsh 2.2 `.msh` with these named patches:
+
+- `airfoil`
+- `inlet`
+- `outlet`
+- `farfield`
+- `frontAndBack`
+- `internal`
+
+The backend treats that patch set as a 2D airfoil case. It sets `frontAndBack` to `empty`, sets the imported `airfoil` patch type to `wall`, applies no-slip/wall-compatible turbulence fields on the airfoil, and records chord, kinematic viscosity, Reynolds number, mesh cell count, and `checkMesh` summary in the run metadata.
+
 None of these should require `.env` or `OPENAI_API_KEY`.
 
 ## What Must Be Installed
@@ -102,6 +120,7 @@ The dashboard should show or offer:
 - `solver.log`
 - `residuals.csv`
 - `openfoam-case.zip`
+- `openfoam-report.html`
 - VTK files when available
 - force/force coefficient logs when configured
 - PNG images later if local visualization dependencies are installed
@@ -121,11 +140,22 @@ The repo currently has:
 - no-API smoke scripts
 - OpenFOAM 10 installed and sourceable in WSL `Ubuntu-22.04` on this development machine
 - first real smoke mesh source in `samples/external_box.geo`
+- generated NACA 4412 validation mesh/report scripts
+- 2D airfoil patch handling for `airfoil`, `inlet`, `outlet`, `farfield`, and `frontAndBack`
 - WSL-native staging under `/tmp/ai-cfd-workbench/<run_id>/case` for real runs, with copy-back into `.local-data/runs/<run_id>/case`
+
+Latest NACA 4412 validation result on this machine:
+
+- Inputs: `25 m/s`, `2 deg` angle of attack, `1 m` chord, `nu=1.5e-5 m^2/s`.
+- Computed metadata: `Re=1.666666e6`.
+- OpenFOAM result: run reached `completed`.
+- `checkMesh`: passed.
+- Cell count: `57,292`.
+- Artifacts: `checkMesh.log`, `solver.log`, `residuals.csv`, VTK files, `openfoam-case.zip`, and `openfoam-report.html`.
 
 Next implementation work:
 
-1. Improve boundary detection and force coefficient setup based on real OpenFOAM logs.
+1. Add force coefficient setup based on the validated airfoil patch model.
 2. Validate `.msh` boundary patches before solver execution and return a clear API/UI error if required patches are missing.
 3. Improve STEP/STL mesh-prep failures while keeping `.msh` the most reliable first-class input.
 4. Add richer visualization after VTK/log artifacts are reliable.

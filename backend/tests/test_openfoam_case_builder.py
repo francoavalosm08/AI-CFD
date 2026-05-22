@@ -75,3 +75,54 @@ def test_case_builder_has_no_unresolved_template_tokens(tmp_path: Path) -> None:
             assert "}}" not in text
     manifest = json.loads((case_dir / "case-manifest.json").read_text())
     assert manifest["assumptions"]["runner"] == "local_openfoam"
+
+
+def test_case_builder_uses_2d_airfoil_boundaries_when_mesh_has_airfoil_patches(tmp_path: Path) -> None:
+    mesh = tmp_path / "naca4412.msh"
+    mesh.write_text(
+        "\n".join(
+            [
+                "$MeshFormat",
+                "2.2 0 8",
+                "$EndMeshFormat",
+                "$PhysicalNames",
+                "6",
+                '2 1 "inlet"',
+                '2 2 "outlet"',
+                '2 3 "farfield"',
+                '2 4 "airfoil"',
+                '2 5 "frontAndBack"',
+                '3 6 "internal"',
+                "$EndPhysicalNames",
+            ]
+        )
+    )
+    case_dir = tmp_path / "case"
+
+    manifest = build_openfoam_case(
+        spec=SimulationSpec(
+            upload_id="upload-1",
+            units="m",
+            length_scale=1,
+            velocity=25,
+            angle_of_attack=2,
+        ),
+        mesh_path=mesh,
+        case_dir=case_dir,
+    )
+
+    assert manifest["case_type"] == "airfoil_2d"
+    assert manifest["reynolds_number"] == 1666666.666667
+    assert manifest["chord_length_m"] == 1.0
+    assert manifest["kinematic_viscosity_m2_s"] == 1.5e-05
+
+    u_text = (case_dir / "0" / "U").read_text()
+    p_text = (case_dir / "0" / "p").read_text()
+    assert "airfoil" in u_text
+    assert "type            noSlip;" in u_text
+    assert "farfield" in u_text
+    assert "type            slip;" in u_text
+    assert "frontAndBack" in u_text
+    assert "type            empty;" in u_text
+    assert "frontAndBack" in p_text
+    assert "type            empty;" in p_text

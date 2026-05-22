@@ -1,4 +1,4 @@
-from app.openfoam.parsers import check_mesh_passed, parse_residuals
+from app.openfoam.parsers import check_mesh_passed, parse_check_mesh_summary, parse_residuals
 
 
 def test_check_mesh_passed_detects_success() -> None:
@@ -19,3 +19,31 @@ Solving for p, Initial residual = 0.2, Final residual = 2e-05, No Iterations 3
         {"field": "Ux", "initial": 0.1, "final": 1e-05, "iterations": 2},
         {"field": "p", "initial": 0.2, "final": 2e-05, "iterations": 3},
     ]
+
+
+def test_parse_check_mesh_summary_extracts_counts_and_status() -> None:
+    output = """
+Mesh stats
+    points:           12000
+    faces:            60000
+    cells:            45000
+Checking geometry...
+    Max aspect ratio = 45.5 OK.
+    Mesh non-orthogonality Max: 62.1 average: 8.2
+    Max skewness = 1.3 OK.
+Mesh OK.
+"""
+
+    summary = parse_check_mesh_summary(output)
+
+    assert summary == {
+        "passed": True,
+        "points": 12000,
+        "faces": 60000,
+        "cells": 45000,
+        "max_aspect_ratio": 45.5,
+        "max_non_orthogonality": 62.1,
+        "average_non_orthogonality": 8.2,
+        "max_skewness": 1.3,
+        "failed_checks": 0,
+    }

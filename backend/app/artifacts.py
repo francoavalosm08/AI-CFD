@@ -18,6 +18,7 @@ ARTIFACT_EXTENSIONS: dict[str, ArtifactType] = {
     ".err": "log",
     ".zip": "download",
     ".foam": "download",
+    ".html": "other",
     ".vtk": "vtk",
     ".vtp": "vtk",
     ".vtu": "vtk",

@@ -9,7 +9,8 @@ from typing import Any
 
 from app.openfoam.artifacts import write_residual_csv, zip_case
 from app.openfoam.case_builder import build_openfoam_case
-from app.openfoam.parsers import parse_residuals
+from app.openfoam.parsers import parse_check_mesh_summary, parse_residuals
+from app.openfoam.report import write_run_report
 from app.openfoam.runner_types import CommandResult
 from app.openfoam.wsl import (
     make_wsl_command_executor,
@@ -132,25 +133,61 @@ class LocalOpenFoamRunner:
             if result.returncode != 0 and command["required"]:
                 detail = (result.stderr or result.stdout).strip()
                 raise RuntimeError(f"{command['name']} failed: {detail}")
+            if command["name"] == "import_mesh" and manifest.get("case_type") == "airfoil_2d":
+                patch_result = await command_executor(
+                    _front_and_back_empty_command(),
+                    execution_case_dir,
+                    self.timeout_seconds,
+                )
+                results.append(_result_dict(patch_result, "set_empty_patches", True))
+                self._write_command_log(output, "set_empty_patches", patch_result)
+                if patch_result.returncode != 0:
+                    detail = (patch_result.stderr or patch_result.stdout).strip()
+                    raise RuntimeError(f"set_empty_patches failed: {detail}")
             if command["name"] == "check_mesh":
                 await _emit(emit, "running", "Running simpleFoam solver")
 
         solver_log = output / "solver.log"
+        check_mesh_log = output / "checkMesh.log"
+        check_mesh_summary = parse_check_mesh_summary(
+            check_mesh_log.read_text(encoding="utf-8") if check_mesh_log.exists() else ""
+        )
+        if check_mesh_summary:
+            (output / "checkMesh-summary.json").write_text(
+                json.dumps(check_mesh_summary, indent=2),
+                encoding="utf-8",
+            )
         residuals = parse_residuals(solver_log.read_text(encoding="utf-8") if solver_log.exists() else "")
         if residuals:
             write_residual_csv(residuals, output / "residuals.csv")
         if staged_case_dir_wsl:
             await self._copy_wsl_case_back(staged_case_dir_wsl, case_dir)
         archive = zip_case(case_dir, output / "openfoam-case.zip")
+        chord_length = manifest.get("chord_length_m") or self.spec.length_scale
+        reynolds_number = manifest.get("reynolds_number")
+        report = write_run_report(
+            run_dir=output,
+            output_path=output / "openfoam-report.html",
+            title="OpenFOAM Solver Output",
+            inputs={
+                "Velocity": f"{self.spec.velocity:g} m/s",
+                "Angle of attack": f"{self.spec.angle_of_attack:g} deg",
+                "Chord": f"{chord_length:g} m",
+                "Kinematic viscosity": f"{manifest.get('kinematic_viscosity_m2_s', 1.5e-5):g} m^2/s",
+                "Reynolds number": f"{reynolds_number:g}" if reynolds_number is not None else "n/a",
+            },
+        )
         await _emit(emit, "visualizing", "Collected local OpenFOAM artifacts")
         return {
             "mode": "local_openfoam",
             "dry_run": False,
             "case_dir": str(case_dir),
             "case_archive": str(archive),
+            "report": str(report),
             "commands": commands,
             "results": results,
             "manifest": manifest,
+            "check_mesh_summary": check_mesh_summary,
         }
 
     def _commands(self) -> list[dict[str, Any]]:
@@ -251,3 +288,22 @@ def _result_dict(result: CommandResult, name: str, required: bool) -> dict[str, 
         "stdout_excerpt": result.stdout[:500],
         "stderr_excerpt": result.stderr[:500],
     }
+
+
+def _front_and_back_empty_command() -> str:
+    script = (
+        "from pathlib import Path; "
+        "p=Path('constant/polyMesh/boundary'); "
+        "text=p.read_text(); "
+        "front='frontAndBack\\n    {\\n        type            patch;'; "
+        "front_new='frontAndBack\\n    {\\n        type            empty;'; "
+        "airfoil='airfoil\\n    {\\n        type            patch;'; "
+        "airfoil_new='airfoil\\n    {\\n        type            wall;'; "
+        "assert front in text, 'frontAndBack patch block with type patch was not found'; "
+        "assert airfoil in text, 'airfoil patch block with type patch was not found'; "
+        "text=text.replace(front,front_new,1).replace(airfoil,airfoil_new,1); "
+        "p.write_text(text); "
+        "print('airfoil set to wall; frontAndBack set to empty')"
+    )
+    escaped = script.replace("'", "'\"'\"'")
+    return f"python3 -c '{escaped}'"
