@@ -20,6 +20,12 @@ def write_visualization_previews(run_dir: Path) -> list[Path]:
         _write_line_plot(path, residuals, "Final residuals")
         previews.append(path)
 
+    force_coefficients = _read_force_coefficient_series(run_dir / "forceCoeffs.csv")
+    if force_coefficients:
+        path = run_dir / "force-coefficients.png"
+        _write_linear_plot(path, force_coefficients, "Force coefficients")
+        previews.append(path)
+
     vtk = _find_latest_case_vtk(run_dir / "case" / "VTK")
     if vtk:
         data = _read_ascii_vtk(vtk)
@@ -54,6 +60,23 @@ def _read_residual_series(path: Path) -> dict[str, list[float]]:
     return series
 
 
+def _read_force_coefficient_series(path: Path) -> dict[str, list[float]]:
+    if not path.exists():
+        return {}
+    series: dict[str, list[float]] = {"Cl": [], "Cd": [], "Cm": []}
+    with path.open(newline="", encoding="utf-8") as handle:
+        for row in csv.DictReader(handle):
+            for field in ["Cl", "Cd", "Cm"]:
+                value = row.get(field)
+                if value is None:
+                    continue
+                try:
+                    series[field].append(float(value))
+                except ValueError:
+                    continue
+    return {field: values for field, values in series.items() if values}
+
+
 def _write_line_plot(path: Path, series: dict[str, list[float]], title: str) -> None:
     image = _canvas()
     _draw_axes(image)
@@ -74,6 +97,32 @@ def _write_line_plot(path: Path, series: dict[str, list[float]], title: str) -> 
     _draw_text(image, MARGIN, 26, title, (15, 23, 42))
     _draw_text(image, MARGIN, HEIGHT - 18, "solver step", (71, 85, 105))
     _draw_text(image, 12, MARGIN, "log10(final)", (71, 85, 105))
+    _write_png(path, image)
+
+
+def _write_linear_plot(path: Path, series: dict[str, list[float]], title: str) -> None:
+    image = _canvas()
+    _draw_axes(image)
+    values = [value for field_values in series.values() for value in field_values]
+    min_value = min(values)
+    max_value = max(values)
+    padding = max((max_value - min_value) * 0.08, 0.001)
+    min_value -= padding
+    max_value += padding
+    colors = [(36, 99, 235), (220, 38, 38), (22, 163, 74)]
+    for index, (field, field_values) in enumerate(sorted(series.items())):
+        if len(field_values) == 1:
+            points = [(_plot_x(0, 1), _plot_y(field_values[0], min_value, max_value))]
+        else:
+            points = [
+                (_plot_x(i, len(field_values) - 1), _plot_y(value, min_value, max_value))
+                for i, value in enumerate(field_values)
+            ]
+        _draw_polyline(image, points, colors[index % len(colors)])
+        _draw_text(image, 690, 70 + index * 18, field, colors[index % len(colors)])
+    _draw_text(image, MARGIN, 26, title, (15, 23, 42))
+    _draw_text(image, MARGIN, HEIGHT - 18, "solver step", (71, 85, 105))
+    _draw_text(image, 12, MARGIN, "coefficient", (71, 85, 105))
     _write_png(path, image)
 
 

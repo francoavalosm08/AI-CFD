@@ -1,4 +1,10 @@
-from app.openfoam.parsers import check_mesh_passed, parse_check_mesh_summary, parse_residuals
+from app.openfoam.parsers import (
+    check_mesh_passed,
+    final_force_coefficients,
+    parse_check_mesh_summary,
+    parse_force_coefficients,
+    parse_residuals,
+)
 
 
 def test_check_mesh_passed_detects_success() -> None:
@@ -47,3 +53,19 @@ Mesh OK.
         "max_skewness": 1.3,
         "failed_checks": 0,
     }
+
+
+def test_parse_force_coefficients_extracts_openfoam_rows_and_final_values() -> None:
+    text = """
+# Time         Cm             Cd             Cl             Cl(f)          Cl(r)
+0             0              0              0              0              0
+50            -0.0123        0.0345         0.4567         0.22           0.23
+"""
+
+    rows = parse_force_coefficients(text)
+
+    assert rows == [
+        {"time": 0.0, "Cm": 0.0, "Cd": 0.0, "Cl": 0.0},
+        {"time": 50.0, "Cm": -0.0123, "Cd": 0.0345, "Cl": 0.4567},
+    ]
+    assert final_force_coefficients(rows) == {"time": 50.0, "Cm": -0.0123, "Cd": 0.0345, "Cl": 0.4567}

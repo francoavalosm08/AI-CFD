@@ -26,6 +26,22 @@ def test_write_visualization_previews_creates_residual_png_from_csv(tmp_path: Pa
     assert _png_size(residual) == (900, 520)
 
 
+def test_write_visualization_previews_creates_force_coefficient_plot_from_csv(tmp_path: Path) -> None:
+    (tmp_path / "forceCoeffs.csv").write_text(
+        "time,Cl,Cd,Cm\n"
+        "0,0,0,0\n"
+        "25,0.41,0.03,-0.01\n"
+        "50,0.43,0.028,-0.012\n",
+        encoding="utf-8",
+    )
+
+    previews = write_visualization_previews(tmp_path)
+
+    plot = tmp_path / "force-coefficients.png"
+    assert plot in previews
+    assert _png_size(plot) == (900, 520)
+
+
 def test_write_visualization_previews_creates_vtk_png_from_ascii_vtk_points(tmp_path: Path) -> None:
     vtk_dir = tmp_path / "case" / "VTK"
     vtk_dir.mkdir(parents=True)

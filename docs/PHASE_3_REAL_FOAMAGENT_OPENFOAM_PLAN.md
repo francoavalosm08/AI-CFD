@@ -23,7 +23,7 @@ The first local OpenFOAM implementation and sample acceptance slice is now in th
 - The first non-dry-run WSL/OpenFOAM smoke completed from `.local-data/external_box.msh`.
 - Real WSL execution is staged under `/tmp/ai-cfd-workbench/<run_id>/case` and copied back to the Windows run directory to avoid OpenFOAM issues with spaces in the repo path.
 
-Remaining work is hardening for real user meshes: refine boundary detection, force coefficient setup, mesh validation, and visualization from real logs/artifacts.
+Remaining work is hardening for real user meshes: improve STEP/STL mesh-prep errors, add user-facing `.msh` physical-name examples, and upgrade visualization after static OpenFOAM-derived outputs are stable.
 
 ---
 

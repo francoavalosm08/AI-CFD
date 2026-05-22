@@ -3,13 +3,20 @@ from __future__ import annotations
 import asyncio
 import inspect
 import json
+import shutil
 from collections.abc import Awaitable, Callable
 from pathlib import Path, PurePosixPath
 from typing import Any
 
-from app.openfoam.artifacts import write_residual_csv, zip_case
+from app.openfoam.artifacts import write_force_coefficients_csv, write_residual_csv, zip_case
 from app.openfoam.case_builder import build_openfoam_case
-from app.openfoam.parsers import parse_check_mesh_summary, parse_residuals
+from app.openfoam.mesh_validation import validate_msh_physical_names
+from app.openfoam.parsers import (
+    final_force_coefficients,
+    parse_check_mesh_summary,
+    parse_force_coefficients,
+    parse_residuals,
+)
 from app.openfoam.report import write_run_report
 from app.openfoam.runner_types import CommandResult
 from app.openfoam.visualization import write_visualization_previews
@@ -69,6 +76,15 @@ class LocalOpenFoamRunner:
         output = Path(output_dir)
         output.mkdir(parents=True, exist_ok=True)
         case_dir = output / "case"
+        await _emit(emit, "preprocessing", "Validating Gmsh physical names")
+        mesh_validation = validate_msh_physical_names(Path(mesh_path))
+        (output / "mesh-validation.json").write_text(
+            json.dumps(mesh_validation, indent=2),
+            encoding="utf-8",
+        )
+        if not mesh_validation["passed"]:
+            raise RuntimeError("; ".join(mesh_validation["warnings"]))
+
         await _emit(emit, "planning", "Building deterministic local OpenFOAM case")
         manifest = build_openfoam_case(
             spec=self.spec,
@@ -83,6 +99,7 @@ class LocalOpenFoamRunner:
             "case_dir_windows": str(case_dir),
             "commands": commands,
             "prompt_excerpt": prompt[:240],
+            "mesh_validation": mesh_validation,
         }
         if self.runtime == "wsl":
             command_manifest["wsl_distro"] = self.wsl_distro
@@ -121,6 +138,7 @@ class LocalOpenFoamRunner:
                 "case_archive": str(archive),
                 "commands": commands,
                 "manifest": manifest,
+                "mesh_validation": mesh_validation,
             }
 
         results: list[dict[str, Any]] = []
@@ -163,6 +181,8 @@ class LocalOpenFoamRunner:
             write_residual_csv(residuals, output / "residuals.csv")
         if staged_case_dir_wsl:
             await self._copy_wsl_case_back(staged_case_dir_wsl, case_dir)
+        force_rows = _collect_force_coefficients(case_dir, output)
+        final_coefficients = final_force_coefficients(force_rows)
         visualizations = write_visualization_previews(output)
         archive = zip_case(case_dir, output / "openfoam-case.zip")
         chord_length = manifest.get("chord_length_m") or self.spec.length_scale
@@ -190,6 +210,9 @@ class LocalOpenFoamRunner:
             "commands": commands,
             "results": results,
             "manifest": manifest,
+            "mesh_validation": mesh_validation,
+            "force_coefficients": manifest.get("force_coefficients", {"enabled": False}),
+            "final_coefficients": final_coefficients,
             "check_mesh_summary": check_mesh_summary,
         }
 
@@ -310,3 +333,30 @@ def _front_and_back_empty_command() -> str:
     )
     escaped = script.replace("'", "'\"'\"'")
     return f"python3 -c '{escaped}'"
+
+
+def _collect_force_coefficients(case_dir: Path, output_dir: Path) -> list[dict]:
+    source = _latest_force_coefficients_file(case_dir)
+    if source is None:
+        return []
+    copied = output_dir / "forceCoeffs.dat"
+    shutil.copy2(source, copied)
+    rows = parse_force_coefficients(copied.read_text(errors="replace"))
+    if rows:
+        write_force_coefficients_csv(rows, output_dir / "forceCoeffs.csv")
+    return rows
+
+
+def _latest_force_coefficients_file(case_dir: Path) -> Path | None:
+    candidates = [path for path in case_dir.rglob("forceCoeffs.dat") if path.is_file()]
+    if not candidates:
+        return None
+    return sorted(candidates, key=_force_coefficients_sort_key)[-1]
+
+
+def _force_coefficients_sort_key(path: Path) -> tuple[float, str]:
+    try:
+        time_value = float(path.parent.name)
+    except ValueError:
+        time_value = -1.0
+    return (time_value, path.as_posix())

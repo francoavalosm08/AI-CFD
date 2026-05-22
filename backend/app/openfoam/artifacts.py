@@ -14,6 +14,23 @@ def write_residual_csv(rows: list[dict], output_path: Path) -> Path:
     return output_path
 
 
+def write_force_coefficients_csv(rows: list[dict], output_path: Path) -> Path:
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with output_path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=["time", "Cl", "Cd", "Cm"])
+        writer.writeheader()
+        for row in rows:
+            writer.writerow(
+                {
+                    "time": row["time"],
+                    "Cl": row["Cl"],
+                    "Cd": row["Cd"],
+                    "Cm": row["Cm"],
+                }
+            )
+    return output_path
+
+
 def zip_case(case_dir: Path, archive_path: Path) -> Path:
     archive_path.parent.mkdir(parents=True, exist_ok=True)
     base_name = archive_path.with_suffix("")

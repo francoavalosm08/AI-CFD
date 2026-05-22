@@ -169,3 +169,82 @@ async def test_runner_sets_empty_patch_before_check_mesh_for_2d_airfoil(tmp_path
     assert result["check_mesh_summary"]["cells"] == 45000
     assert result["visualizations"] == ["residuals.png"]
     assert (tmp_path / "run" / "residuals.png").exists()
+
+
+@pytest.mark.asyncio
+async def test_runner_fails_airfoil_mesh_validation_before_openfoam_commands(tmp_path: Path) -> None:
+    mesh = tmp_path / "bad-airfoil.msh"
+    mesh.write_text(
+        "\n".join(
+            [
+                "$MeshFormat",
+                "2.2 0 8",
+                "$EndMeshFormat",
+                "$PhysicalNames",
+                "5",
+                '2 1 "inlet"',
+                '2 2 "outlet"',
+                '2 3 "farfield"',
+                '2 4 "airfoil"',
+                '3 5 "internal"',
+                "$EndPhysicalNames",
+            ]
+        )
+    )
+    executor = RecordingExecutor()
+    runner = LocalOpenFoamRunner(spec=_spec(), dry_run=False, command_executor=executor)
+
+    with pytest.raises(RuntimeError) as exc_info:
+        await runner.run_external_aero(
+            prompt="local openfoam airfoil run",
+            mesh_path=str(mesh),
+            output_dir=str(tmp_path / "run"),
+            emit=lambda _status, _message: None,
+        )
+
+    assert executor.commands == []
+    assert "Missing required airfoil_2d physical names: frontAndBack" in str(exc_info.value)
+    validation = json.loads((tmp_path / "run" / "mesh-validation.json").read_text())
+    assert validation["passed"] is False
+
+
+@pytest.mark.asyncio
+async def test_runner_collects_force_coefficients_from_openfoam_postprocessing(tmp_path: Path) -> None:
+    mesh = tmp_path / "naca4412.msh"
+    _airfoil_mesh(mesh)
+    output_dir = tmp_path / "run"
+    case_dir = output_dir / "case"
+    executor = RecordingExecutor(
+        [
+            CommandResult(command="gmshToFoam input.msh", returncode=0, stdout="mesh imported", stderr=""),
+            CommandResult(command="python patch boundary", returncode=0, stdout="airfoil set wall; frontAndBack set empty", stderr=""),
+            CommandResult(command="checkMesh -allGeometry -allTopology", returncode=0, stdout="cells: 45000\nMesh OK.", stderr=""),
+            CommandResult(command="simpleFoam", returncode=0, stdout="Solving for Ux, Initial residual = 1e-4, Final residual = 1e-8, No Iterations 1", stderr=""),
+            CommandResult(command="foamToVTK", returncode=0, stdout="vtk", stderr=""),
+        ]
+    )
+
+    async def force_writing_executor(command: str, cwd: Path, timeout_seconds: int) -> CommandResult:
+        result = await executor(command, cwd, timeout_seconds)
+        if command == "simpleFoam":
+            force_dir = case_dir / "postProcessing" / "forceCoeffs1" / "0"
+            force_dir.mkdir(parents=True)
+            (force_dir / "forceCoeffs.dat").write_text(
+                "# Time Cm Cd Cl Cl(f) Cl(r)\n0 0 0 0 0 0\n10 -0.01 0.03 0.4 0.2 0.2\n",
+                encoding="utf-8",
+            )
+        return result
+
+    runner = LocalOpenFoamRunner(spec=_spec(), dry_run=False, command_executor=force_writing_executor)
+
+    result = await runner.run_external_aero(
+        prompt="local openfoam airfoil run",
+        mesh_path=str(mesh),
+        output_dir=str(output_dir),
+        emit=lambda _status, _message: None,
+    )
+
+    assert result["final_coefficients"] == {"time": 10.0, "Cm": -0.01, "Cd": 0.03, "Cl": 0.4}
+    assert (output_dir / "forceCoeffs.dat").exists()
+    assert (output_dir / "forceCoeffs.csv").exists()
+    assert (output_dir / "force-coefficients.png").exists()

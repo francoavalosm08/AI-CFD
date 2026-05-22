@@ -676,9 +676,8 @@ Implemented:
 
 Remaining:
 
-- improve boundary detection and force coefficient setup from real logs
-- validate user `.msh` boundary patches before solver execution
 - improve STEP/STL mesh-prep error handling
+- add user-facing `.msh` physical-name examples/templates
 - add richer browser visualization after VTK/log artifacts are stable
 
 ### Phase 4: Runtime Reproducibility

@@ -32,7 +32,7 @@ This is a simplified roadmap for non-software stakeholders, while keeping the ke
 
 **Keywords:** `smoke test`, `PowerShell`, `FastAPI`, `Vite`, `fake mode`, `local onboarding`.
 
-## Phase 3: Local OpenFOAM Real Solver Integration (No API Key) (Sample Acceptance Complete; Hardening In Progress)
+## Phase 3: Local OpenFOAM Real Solver Integration (No API Key) (Airfoil Hardening In Progress)
 
 **Goal:** Move from fake execution to real CFD runs.
 
@@ -62,14 +62,19 @@ This is a simplified roadmap for non-software stakeholders, while keeping the ke
 - First real WSL/OpenFOAM smoke reached `completed` using a `.msh` generated from that sample.
 - NACA 4412 validation generator for `.geo`, `.stl`, and `.msh` files.
 - 2D airfoil OpenFOAM patch handling for `airfoil`, `inlet`, `outlet`, `farfield`, and `frontAndBack`.
-- Real NACA 4412 WSL/OpenFOAM validation reached `completed` at `25 m/s`, `2 deg`, `1 m` chord, `Re=1.666666e6`; `checkMesh` passed with `57,292` cells and generated residual, velocity, and pressure PNG previews.
+- Real NACA 4412 WSL/OpenFOAM validation reached `completed` at `25 m/s`, `2 deg`, `1 m` chord, `Re=1.666666e6`; `checkMesh` passed with `57,292` cells and generated residual, velocity, pressure, and force coefficient PNG previews.
+- Latest accepted OpenFOAM-derived NACA coefficients: `Cl=0.4591685`, `Cd=0.02907224`, `Cm=0.09620507`.
 - WSL-native staging under `/tmp/ai-cfd-workbench/<run_id>/case` for real runs, with copy-back to the Windows run directory.
+- Pre-run `.msh` physical-name validation with `mesh-validation.json`.
+- Airfoil-specific `forceCoeffs` setup and parser for OpenFOAM-generated `Cl`, `Cd`, and `Cm`.
+- Force coefficient artifacts: `forceCoeffs.dat`, `forceCoeffs.csv`, and `force-coefficients.png`.
+- Dashboard summary cards for cells, Reynolds number, `checkMesh`, `Cl`, `Cd`, and `Cm`.
+- Dedicated smoke scripts for NACA validation and bad mesh validation.
 
 **Still required for user-mesh hardening:**
-- Add force coefficient setup based on the validated airfoil patch model.
 - Upgrade the lightweight PNG previews to richer contour/interactivity when PyVista/vtk.js is introduced.
-- Validate uploaded `.msh` boundary patches before solver execution.
 - Improve STEP/STL mesh-prep failure handling while keeping `.msh` first-class.
+- Add more user-facing Gmsh physical-name examples/templates.
 
 **Keywords:** `OpenFOAM`, `WSL2`, `no API key`, `deterministic templates`, `real run`, `artifacts`.
 

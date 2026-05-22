@@ -7,7 +7,7 @@ Automating CFD with a local browser app for external-aerodynamics runs through O
 - Upload `.msh`, `.stl`, `.step`, `.stp`, or `.zip` files.
 - Ask for external-aero specifications: velocity, angle of attack, units, scale, mesh quality, and runtime.
 - Build a deterministic simulation spec and run fake mode or the local OpenFOAM case-generation path.
-- Show an HTML dashboard with status, run logs, PyVista images, residual/plot files, and downloads.
+- Show an HTML dashboard with status, run logs, static OpenFOAM-derived images, residual/coefficient plots, summary metrics, and downloads.
 
 ## Project Handoff And Docs
 
@@ -85,7 +85,16 @@ The repo also includes a generated NACA 4412 validation mesh path for the curren
 .\scripts\smoke-local-openfoam.ps1 -SampleMeshPath .local-data\naca4412-improved\naca4412.msh -TimeoutSeconds 900
 ```
 
-The latest local NACA 4412 acceptance run used `25 m/s`, `2 deg` angle of attack, `1 m` chord, and `nu=1.5e-5 m^2/s` (`Re=1.666666e6`). OpenFOAM `checkMesh` passed with `57,292` cells and generated `checkMesh.log`, `solver.log`, `residuals.csv`, VTK files, `openfoam-case.zip`, `openfoam-report.html`, and PNG visual previews for residuals, velocity magnitude, and pressure.
+The NACA 4412 validation path uses `25 m/s`, `2 deg` angle of attack, `1 m` chord, and `nu=1.5e-5 m^2/s` (`Re=1.666666e6`). OpenFOAM `checkMesh` must pass with at least `40,000` cells. The V1 acceptance outputs are `mesh-validation.json`, `checkMesh.log`, `solver.log`, `residuals.csv`, `forceCoeffs.dat`, `forceCoeffs.csv`, VTK files, `openfoam-case.zip`, `openfoam-report.html`, and PNG previews for residuals, velocity magnitude, pressure, and force coefficients.
+
+Latest accepted local NACA run: `57,292` cells, `Cl=0.4591685`, `Cd=0.02907224`, `Cm=0.09620507`, all parsed from OpenFOAM-generated files.
+
+Dedicated real-solver validation scripts:
+
+```powershell
+.\scripts\smoke-naca-openfoam.ps1 -TimeoutSeconds 1200
+.\scripts\smoke-bad-mesh-validation.ps1
+```
 
 For your own meshes:
 
@@ -217,6 +226,7 @@ The Vite dev server proxies `/api` to `http://127.0.0.1:8000` to avoid Windows l
 | `smoke-fake-run.ps1` cannot reach `/api/health` | Backend not running | Start backend with `.\scripts\dev-backend.ps1` |
 | Smoke test fails on upload/run | Backend dependencies incomplete | Rerun `.\scripts\local-verify.ps1` and check error output |
 | STEP/STL conversion fails | `gmsh` missing | Install Gmsh or use `.msh` upload |
+| `.msh` airfoil run fails before OpenFOAM | Missing required Gmsh physical names | Use `airfoil`, `inlet`, `outlet`, `farfield`, `frontAndBack`, and `internal` |
 | Local OpenFOAM preflight fails | WSL2/OpenFOAM missing | Install WSL2 Ubuntu and OpenFOAM, then rerun `.\scripts\dev-openfoam-wsl.ps1 -CheckOnly` |
 | Real OpenFOAM run fails in a path containing spaces | OpenFOAM utilities can be brittle with mounted Windows paths | Use the built-in backend runner, which stages execution in WSL `/tmp` before copying artifacts back |
 | `smoke-local-openfoam.ps1 -DryRun` reports wrong mode | Backend is still in fake mode | Start backend with `.\scripts\dev-openfoam-backend.ps1 -DryRun` |

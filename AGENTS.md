@@ -55,20 +55,24 @@ The NACA 4412 validation path is now implemented for local OpenFOAM mode:
 
 - Generate local validation files with `.\scripts\generate-naca4412.ps1 -OutputDir .local-data\naca4412-improved`.
 - The generated `.msh` uses named patches: `airfoil`, `inlet`, `outlet`, `farfield`, `frontAndBack`, and `internal`.
+- Local OpenFOAM mode validates those names before `gmshToFoam` and writes `mesh-validation.json`.
 - Backend case generation detects this patch set as `airfoil_2d`.
 - The runner normalizes imported OpenFOAM patch types after `gmshToFoam`: `frontAndBack` becomes `empty`; `airfoil` becomes `wall`.
 - Boundary conditions are airfoil-specific: no-slip/wall functions on `airfoil`, `empty` on `frontAndBack`, fixed freestream velocity at `inlet`, pressure outlet behavior at `outlet`, and slip/zero-gradient behavior at `farfield`.
-- Run metadata records `chord_length_m=1.0`, `kinematic_viscosity_m2_s=1.5e-5`, `reynolds_number=1666666.666667`, and parsed `checkMesh` summary.
-- The latest real local run used `25 m/s`, `2 deg` angle of attack, `1 m` chord, and reached `completed`.
+- Run metadata records `chord_length_m=1.0`, `kinematic_viscosity_m2_s=1.5e-5`, `reynolds_number=1666666.666667`, parsed `checkMesh` summary, and final OpenFOAM-generated `Cl/Cd/Cm` when available.
+- Airfoil cases enable OpenFOAM `forceCoeffs` on the `airfoil` patch.
+- The latest real local run used `25 m/s`, `2 deg` angle of attack, `1 m` chord, and reached `completed` as run `ba226737-d4d3-4c5a-836c-23d14bdb2968`.
 - OpenFOAM `checkMesh` passed with `57,292` cells.
-- Required artifacts were present: `checkMesh.log`, `solver.log`, `residuals.csv`, VTK output, `openfoam-case.zip`, and `openfoam-report.html`.
+- Final OpenFOAM-derived coefficients from that run: `Cl=0.4591685`, `Cd=0.02907224`, `Cm=0.09620507`.
+- Required artifacts include: `mesh-validation.json`, `checkMesh.log`, `solver.log`, `residuals.csv`, `forceCoeffs.dat`, `forceCoeffs.csv`, `force-coefficients.png`, VTK output, `openfoam-case.zip`, and `openfoam-report.html`.
 - The visual-preview milestone is implemented with lightweight PNG generation from OpenFOAM outputs:
   - `residuals.png` from `residuals.csv`
   - `velocity-magnitude.png` from ASCII VTK point data
   - `pressure.png` from ASCII VTK point data
+  - `force-coefficients.png` from OpenFOAM `forceCoeffs.csv`
 - The OpenFOAM runner exports VTK with `foamToVTK -ascii`; binary VTK is skipped by the lightweight parser instead of blocking a run.
 
-Do not accept future NACA validation runs as successful if `checkMesh` fails or if OpenFOAM reports fewer than `40,000` cells.
+Do not accept future NACA validation runs as successful if `checkMesh` fails, OpenFOAM reports fewer than `40,000` cells, or `forceCoeffs.dat` / `forceCoeffs.csv` / `force-coefficients.png` / final `Cl/Cd/Cm` are missing.
 
 ## Recent Work (Phase 3 — 2026-05-22)
 
@@ -111,6 +115,8 @@ A prior agent session implemented most of Phase 3 code and docs. Fake mode was p
 - `cd backend; ..\.venv\Scripts\python.exe -m pytest` -> **50 passed**
 - `.\scripts\local-verify.ps1 -Scope backend` -> **PASS**
 - `.\scripts\release-check.ps1` -> **PASS**
+- `.\scripts\smoke-naca-openfoam.ps1 -ApiBaseUrl http://127.0.0.1:8012 -TimeoutSeconds 1200 -PollIntervalSeconds 5 -SkipPreflight` -> **PASS** (run `ba226737-d4d3-4c5a-836c-23d14bdb2968`)
+- `.\scripts\smoke-bad-mesh-validation.ps1 -ApiBaseUrl http://127.0.0.1:8012` -> **PASS**
 - `npm --prefix frontend run build` -> **PASS**
 - `.\scripts\dev-foamagent.ps1 -CheckOnly` -> blocked before real acceptance because Docker Desktop daemon is not running
 - `.\scripts\dev-real-backend.ps1 -SkipDependencyInstall` -> blocked before startup because `.env` is missing
@@ -131,6 +137,8 @@ This old gate is now optional. The primary no-API local OpenFOAM gate is:
 .\scripts\smoke-local-openfoam.ps1 -DryRun
 .\scripts\dev-openfoam-backend.ps1
 .\scripts\smoke-local-openfoam.ps1
+.\scripts\smoke-naca-openfoam.ps1
+.\scripts\smoke-bad-mesh-validation.ps1
 ```
 
 For future real non-dry-run smokes, generate the committed sample mesh with `gmsh samples\external_box.geo -3 -format msh2 -o .local-data\external_box.msh`, then pass `-SampleMeshPath .local-data\external_box.msh`. For user meshes, make sure the `.msh` has valid external-aero volume/boundary patches before using it as acceptance evidence.
@@ -153,6 +161,7 @@ The app currently supports:
 - Discovering and serving run artifacts.
 - Fake Foam-Agent execution that creates representative image/log/download artifacts.
 - Local OpenFOAM dry-run execution that creates a deterministic case, command manifest, logs, and case zip without an API key.
+- Local OpenFOAM airfoil validation with pre-run patch validation and OpenFOAM-generated force coefficient artifacts.
 - Browser E2E coverage for upload -> spec -> run -> dashboard artifacts.
 
 ## Important Docs
@@ -164,6 +173,7 @@ Start with these files:
 - `docs/PROJECT_OVERVIEW_AND_RUNBOOK.md`: full architecture and operating runbook.
 - `docs/PHASES_SUMMARY.md`: what was completed and planned by phase.
 - `docs/PHASE_2_PLANNING_DRAFT.md`: prior milestone planning detail.
+- `docs/EXTERNAL_AERO_V1_ROADMAP.md`: active roadmap and acceptance gates from the current prototype to usable external-aero V1.
 - `docs/PHASE_3_REAL_FOAMAGENT_OPENFOAM_PLAN.md`: next milestone plan, now rewritten around local OpenFOAM without API keys.
 - `docs/LOCAL_OPENFOAM_NO_API_RUNBOOK.md`: no-API local OpenFOAM target runbook.
 - `docs/REAL_MODE_RUNBOOK.md`: optional Foam-Agent/MCP startup, health checks, troubleshooting.
@@ -211,8 +221,8 @@ Optional Foam-Agent/MCP mode (requires Docker + `.env` API key):
 The latest verified baseline passed:
 
 - Python/backend prerequisite check, including Gmsh 4.13.1.
-- Backend pytest suite: **50 tests** (includes MCP, preflight, mirroring, local OpenFOAM).
-- Frontend Vitest suite: 5 tests.
+- Backend pytest suite: **73 tests** (includes MCP, preflight, mirroring, local OpenFOAM, mesh validation, and force coefficients).
+- Frontend Vitest suite: 6 tests.
 - Fake-mode backend smoke flow (`local-verify.ps1 -Scope backend`).
 - Playwright browser E2E workflow (via full `release-check.ps1`).
 - Local OpenFOAM dry-run smoke flow (via full `release-check.ps1`).
@@ -245,9 +255,9 @@ Phase 3 implemented steps:
 
 Phase 3 sample acceptance is complete on this machine. Remaining hardening steps:
 
-1. Use real OpenFOAM logs to improve boundary detection and force coefficient setup.
-2. Add validation for uploaded `.msh` boundary patches before solver execution.
-3. Improve STEP/STL mesh-prep error messages and keep `.msh` as the first-class input.
+1. Run fresh real NACA and bad-mesh smoke validation after solver-path changes.
+2. Improve STEP/STL mesh-prep error messages and keep `.msh` as the first-class input.
+3. Add user-facing Gmsh physical-name examples/templates.
 4. Add richer visualization after VTK/log artifacts are reliable.
 5. Keep `.\scripts\release-check.ps1` passing after every follow-up change.
 

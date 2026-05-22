@@ -15,6 +15,7 @@ def write_run_report(
     inputs: dict[str, str],
 ) -> Path:
     residual_rows = _read_residual_rows(run_dir / "residuals.csv")
+    force_rows = _read_force_rows(run_dir / "forceCoeffs.csv")
     check_mesh_text = (run_dir / "checkMesh.log").read_text(errors="replace") if (run_dir / "checkMesh.log").exists() else ""
     check_mesh_summary = parse_check_mesh_summary(check_mesh_text)
     solver_tail = _tail(run_dir / "solver.log", 44)
@@ -24,6 +25,7 @@ def write_run_report(
             title=title,
             inputs=inputs,
             residual_rows=residual_rows,
+            force_rows=force_rows,
             check_mesh_text=check_mesh_text,
             check_mesh_summary=check_mesh_summary,
             solver_tail=solver_tail,
@@ -41,6 +43,13 @@ def _read_residual_rows(path: Path) -> list[dict[str, str]]:
         return list(csv.DictReader(handle))
 
 
+def _read_force_rows(path: Path) -> list[dict[str, str]]:
+    if not path.exists():
+        return []
+    with path.open(newline="", encoding="utf-8") as handle:
+        return list(csv.DictReader(handle))
+
+
 def _tail(path: Path, lines: int) -> str:
     if not path.exists():
         return ""
@@ -52,6 +61,7 @@ def _html(
     title: str,
     inputs: dict[str, str],
     residual_rows: list[dict[str, str]],
+    force_rows: list[dict[str, str]],
     check_mesh_text: str,
     check_mesh_summary: dict,
     solver_tail: str,
@@ -64,9 +74,13 @@ def _html(
         "pressure.png",
         "velocity-magnitude.png",
         "residuals.png",
+        "force-coefficients.png",
         "solver.log",
         "checkMesh.log",
         "residuals.csv",
+        "forceCoeffs.dat",
+        "forceCoeffs.csv",
+        "mesh-validation.json",
         "checkMesh-summary.json",
         "openfoam-commands.json",
         "openfoam-case.zip",
@@ -92,6 +106,13 @@ def _html(
         f"<tr><td>{html.escape(field)}</td><td>{html.escape(value)}</td></tr>"
         for field, value in sorted(final_residuals.items())
     )
+    final_force_row = force_rows[-1] if force_rows else {}
+    force_table = ""
+    if final_force_row:
+        force_table = "".join(
+            f"<tr><td>{html.escape(name)}</td><td>{html.escape(final_force_row.get(name, ''))}</td></tr>"
+            for name in ["Cl", "Cd", "Cm"]
+        )
     check_lines = "\n".join(
         line
         for line in check_mesh_text.splitlines()
@@ -125,6 +146,7 @@ a{{color:#075985}}
 <pre>{html.escape(check_lines)}</pre></div>
 <div class="card"><h2>Visual previews</h2>{''.join(image_cards) or '<p class="muted">No PNG previews were generated.</p>'}</div>
 <div class="card"><h2>Final residuals</h2><table><tr><th>Field</th><th>Final residual</th></tr>{residual_table}</table></div>
+<div class="card"><h2>Final force coefficients</h2><table><tr><th>Coefficient</th><th>Value</th></tr>{force_table}</table></div>
 <div class="card"><h2>Generated artifacts</h2><ul>{''.join(artifact_links)}</ul></div>
 <div class="card"><h2>Solver log tail</h2><pre>{html.escape(solver_tail)}</pre></div>
 </div></body></html>

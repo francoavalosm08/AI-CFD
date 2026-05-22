@@ -2,6 +2,9 @@
 param(
     [string]$ApiBaseUrl = "http://localhost:8000",
     [string]$SampleMeshPath = "",
+    [double]$Velocity = 25,
+    [double]$AngleOfAttack = 3,
+    [double]$LengthScale = 1,
     [int]$TimeoutSeconds = 120,
     [int]$PollIntervalSeconds = 1,
     [switch]$DryRun,
@@ -69,6 +72,14 @@ function Get-HttpText {
     }
 }
 
+function Test-JsonProperty {
+    param(
+        $Object,
+        [Parameter(Mandatory = $true)][string]$Name
+    )
+    return $null -ne $Object -and ($Object.PSObject.Properties.Name -contains $Name)
+}
+
 if (-not (Test-Path $SampleMeshPath)) {
     Fail "Sample mesh not found at '$SampleMeshPath'."
 }
@@ -129,9 +140,9 @@ $runRequest = @{
     spec = @{
         upload_id = $upload.id
         units = "m"
-        length_scale = 1
-        velocity = 25
-        angle_of_attack = 3
+        length_scale = $LengthScale
+        velocity = $Velocity
+        angle_of_attack = $AngleOfAttack
         mesh_quality = "balanced"
         max_runtime_minutes = 60
     }
@@ -191,7 +202,7 @@ if ($artifacts.Count -eq 0) {
 }
 
 $names = @($artifacts | ForEach-Object { $_.display_name })
-foreach ($requiredName in @("openfoam-commands.json", "case-manifest.json", "openfoam-case.zip")) {
+foreach ($requiredName in @("openfoam-commands.json", "case-manifest.json", "mesh-validation.json", "openfoam-case.zip")) {
     if (-not ($names -contains $requiredName)) {
         Fail "Artifacts did not include required local OpenFOAM output '$requiredName'."
     }
@@ -199,8 +210,49 @@ foreach ($requiredName in @("openfoam-commands.json", "case-manifest.json", "ope
 if ($DryRun -and -not ($names -contains "openfoam-dry-run.log")) {
     Fail "Dry-run smoke expected openfoam-dry-run.log."
 }
-if (-not $DryRun -and -not ($names -contains "solver.log")) {
-    Fail "Real local OpenFOAM smoke expected solver.log. Use -DryRun if OpenFOAM is not installed yet."
+if (-not $DryRun) {
+    foreach ($requiredName in @("solver.log", "checkMesh.log", "checkMesh-summary.json", "residuals.csv", "openfoam-report.html")) {
+        if (-not ($names -contains $requiredName)) {
+            Fail "Real local OpenFOAM smoke expected '$requiredName'. Use -DryRun if OpenFOAM is not installed yet."
+        }
+    }
+
+    $caseType = ""
+    if (Test-JsonProperty -Object $run.summary -Name "manifest") {
+        $manifest = $run.summary.manifest
+        if (Test-JsonProperty -Object $manifest -Name "case_type") {
+            $caseType = [string]$manifest.case_type
+        }
+    }
+
+    if ($caseType -eq "airfoil_2d") {
+        foreach ($requiredName in @("forceCoeffs.dat", "forceCoeffs.csv", "force-coefficients.png", "pressure.png", "velocity-magnitude.png")) {
+            if (-not ($names -contains $requiredName)) {
+                Fail "Airfoil OpenFOAM smoke expected '$requiredName'."
+            }
+        }
+
+        if (-not (Test-JsonProperty -Object $run.summary -Name "final_coefficients")) {
+            Fail "Airfoil OpenFOAM smoke expected final_coefficients in run summary."
+        }
+        $finalCoefficients = $run.summary.final_coefficients
+        foreach ($coefficient in @("Cl", "Cd", "Cm")) {
+            if (-not (Test-JsonProperty -Object $finalCoefficients -Name $coefficient)) {
+                Fail "Airfoil OpenFOAM smoke expected final coefficient '$coefficient'."
+            }
+        }
+
+        if (-not (Test-JsonProperty -Object $run.summary -Name "check_mesh_summary")) {
+            Fail "Airfoil OpenFOAM smoke expected check_mesh_summary in run summary."
+        }
+        $checkMesh = $run.summary.check_mesh_summary
+        if (-not (Test-JsonProperty -Object $checkMesh -Name "cells")) {
+            Fail "Airfoil OpenFOAM smoke expected check_mesh_summary.cells."
+        }
+        if ([int]$checkMesh.cells -lt 40000) {
+            Fail ("Airfoil mesh cell count is below V1 acceptance threshold: {0}." -f $checkMesh.cells)
+        }
+    }
 }
 Write-Host ("[ok] Artifacts found: {0}." -f $artifacts.Count)
 

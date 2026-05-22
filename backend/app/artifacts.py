@@ -12,6 +12,7 @@ ARTIFACT_EXTENSIONS: dict[str, ArtifactType] = {
     ".jpeg": "image",
     ".webp": "image",
     ".csv": "plot_data",
+    ".dat": "plot_data",
     ".json": "plot_data",
     ".log": "log",
     ".out": "log",

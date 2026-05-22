@@ -15,6 +15,11 @@ def test_write_run_report_includes_generated_openfoam_outputs(tmp_path: Path) ->
     (run_dir / "openfoam-case.zip").write_text("zip", encoding="utf-8")
     (run_dir / "openfoam-commands.json").write_text("{}", encoding="utf-8")
     (run_dir / "pressure.png").write_bytes(b"png")
+    (run_dir / "forceCoeffs.csv").write_text(
+        "time,Cl,Cd,Cm\n50,0.45,0.032,-0.014\n",
+        encoding="utf-8",
+    )
+    (run_dir / "force-coefficients.png").write_bytes(b"png")
 
     report = write_run_report(
         run_dir=run_dir,
@@ -32,3 +37,8 @@ def test_write_run_report_includes_generated_openfoam_outputs(tmp_path: Path) ->
     assert "Mesh OK" in html
     assert "solver.log" in html
     assert "pressure.png" in html
+    assert "forceCoeffs.csv" in html
+    assert "force-coefficients.png" in html
+    assert "0.45" in html
+    assert "0.032" in html
+    assert "-0.014" in html

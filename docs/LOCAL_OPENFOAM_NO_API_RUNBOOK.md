@@ -54,6 +54,13 @@ Real solver workflow after WSL/OpenFOAM setup:
 .\scripts\smoke-local-openfoam.ps1 -SampleMeshPath <valid-external-aero-volume.msh>
 ```
 
+NACA 4412 validation and bad-mesh validation:
+
+```powershell
+.\scripts\smoke-naca-openfoam.ps1 -TimeoutSeconds 1200
+.\scripts\smoke-bad-mesh-validation.ps1
+```
+
 First committed sample mesh generator:
 
 ```powershell
@@ -77,7 +84,7 @@ The NACA generator creates `naca4412.geo`, `naca4412.stl`, and a Gmsh 2.2 `.msh`
 - `frontAndBack`
 - `internal`
 
-The backend treats that patch set as a 2D airfoil case. It sets `frontAndBack` to `empty`, sets the imported `airfoil` patch type to `wall`, applies no-slip/wall-compatible turbulence fields on the airfoil, and records chord, kinematic viscosity, Reynolds number, mesh cell count, and `checkMesh` summary in the run metadata.
+The backend validates that patch set before `gmshToFoam`, records the result in `mesh-validation.json`, and treats it as a 2D airfoil case. It sets `frontAndBack` to `empty`, sets the imported `airfoil` patch type to `wall`, applies no-slip/wall-compatible turbulence fields on the airfoil, enables OpenFOAM `forceCoeffs` on the `airfoil` patch, and records chord, kinematic viscosity, Reynolds number, mesh cell count, `checkMesh` summary, and final `Cl/Cd/Cm` when available.
 
 None of these should require `.env` or `OPENAI_API_KEY`.
 
@@ -116,17 +123,20 @@ The dashboard should show or offer:
 
 - `openfoam-commands.json`
 - `case-manifest.json`
+- `mesh-validation.json`
 - `checkMesh.log`
 - `solver.log`
 - `residuals.csv`
 - `residuals.png`
+- `forceCoeffs.dat`
+- `forceCoeffs.csv`
+- `force-coefficients.png`
 - `velocity-magnitude.png`
 - `pressure.png`
 - `openfoam-case.zip`
 - `openfoam-report.html`
 - VTK files when available
-- force/force coefficient logs when configured
-- PNG images later if local visualization dependencies are installed
+- final `Cl`, `Cd`, and `Cm` when an `airfoil_2d` run generates `forceCoeffs`
 
 ## Current Status
 
@@ -147,6 +157,9 @@ The repo currently has:
 - 2D airfoil patch handling for `airfoil`, `inlet`, `outlet`, `farfield`, and `frontAndBack`
 - automatic PNG previews from OpenFOAM outputs: residual plot from `residuals.csv`, and pressure/velocity point previews from ASCII VTK
 - WSL-native staging under `/tmp/ai-cfd-workbench/<run_id>/case` for real runs, with copy-back into `.local-data/runs/<run_id>/case`
+- pre-run `.msh` physical-name validation for the `airfoil_2d` template
+- OpenFOAM `forceCoeffs` setup for `airfoil_2d` and final coefficient parsing
+- force coefficient CSV/PNG/report/dashboard outputs
 
 Latest NACA 4412 validation result on this machine:
 
@@ -155,13 +168,14 @@ Latest NACA 4412 validation result on this machine:
 - OpenFOAM result: run reached `completed`.
 - `checkMesh`: passed.
 - Cell count: `57,292`.
-- Artifacts: `checkMesh.log`, `solver.log`, `residuals.csv`, `residuals.png`, `velocity-magnitude.png`, `pressure.png`, VTK files, `openfoam-case.zip`, and `openfoam-report.html`.
+- Final OpenFOAM-derived coefficients from latest accepted run: `Cl=0.4591685`, `Cd=0.02907224`, `Cm=0.09620507`.
+- Artifacts: `mesh-validation.json`, `checkMesh.log`, `solver.log`, `residuals.csv`, `residuals.png`, `forceCoeffs.dat`, `forceCoeffs.csv`, `force-coefficients.png`, `velocity-magnitude.png`, `pressure.png`, VTK files, `openfoam-case.zip`, and `openfoam-report.html`.
 
 Next implementation work:
 
-1. Add force coefficient setup based on the validated airfoil patch model.
-2. Validate `.msh` boundary patches before solver execution and return a clear API/UI error if required patches are missing.
-3. Improve STEP/STL mesh-prep failures while keeping `.msh` the most reliable first-class input.
+1. Run fresh real NACA and bad-mesh smoke validation after each solver-path change.
+2. Improve STEP/STL mesh-prep failures while keeping `.msh` the most reliable first-class input.
+3. Add user-facing `.geo`/Gmsh physical-name examples for production `.msh` uploads.
 4. Replace the lightweight point-preview renderer with PyVista/vtk.js contours when richer visualization is needed.
 
 ## Troubleshooting Targets

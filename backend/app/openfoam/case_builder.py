@@ -5,6 +5,7 @@ import math
 import shutil
 from pathlib import Path
 
+from app.openfoam.mesh_validation import read_msh_physical_names
 from app.openfoam.templates import foam_header, vector
 from app.schemas import SimulationSpec
 
@@ -15,7 +16,7 @@ def build_openfoam_case(*, spec: SimulationSpec, mesh_path: Path, case_dir: Path
         (case_dir / child).mkdir(exist_ok=True)
     shutil.copy2(mesh_path, case_dir / "input.msh")
 
-    physical_names = _read_physical_names(mesh_path)
+    physical_names = read_msh_physical_names(mesh_path)
     case_type = "airfoil_2d" if {"airfoil", "farfield", "frontAndBack"}.issubset(physical_names) else "generic_external"
     inlet_velocity = _inlet_velocity(spec.velocity, spec.angle_of_attack)
     files = {
@@ -26,10 +27,13 @@ def build_openfoam_case(*, spec: SimulationSpec, mesh_path: Path, case_dir: Path
         "0/nut": _scalar_field("nut", "volScalarField", "0", "[0 2 -1 0 0 0 0]", case_type),
         "constant/transportProperties": _transport_properties(),
         "constant/turbulenceProperties": _turbulence_properties(),
-        "system/controlDict": _control_dict(spec),
+        "system/controlDict": _control_dict(spec, case_type),
         "system/fvSchemes": _fv_schemes(),
         "system/fvSolution": _fv_solution(),
     }
+    force_coefficients = _force_coefficients_config(spec, case_type)
+    if force_coefficients["enabled"]:
+        files["system/forceCoeffs"] = _force_coeffs_file(force_coefficients)
     for relative, content in files.items():
         (case_dir / relative).write_text(content, encoding="utf-8")
 
@@ -46,6 +50,7 @@ def build_openfoam_case(*, spec: SimulationSpec, mesh_path: Path, case_dir: Path
         "kinematic_viscosity_m2_s": 1.5e-05,
         "reynolds_number": round(spec.velocity * 1.0 / 1.5e-05, 6) if case_type == "airfoil_2d" else None,
         "inlet_velocity": [round(value, 6) for value in inlet_velocity],
+        "force_coefficients": force_coefficients,
         "files": sorted(["input.msh", *files.keys()]),
         "assumptions": {
             "runner": "local_openfoam",
@@ -67,6 +72,20 @@ def build_openfoam_case(*, spec: SimulationSpec, mesh_path: Path, case_dir: Path
 def _inlet_velocity(speed: float, angle_degrees: float) -> tuple[float, float, float]:
     angle = math.radians(angle_degrees)
     return (speed * math.cos(angle), speed * math.sin(angle), 0)
+
+
+def force_coefficient_directions(angle_degrees: float) -> dict[str, tuple[float, float, float]]:
+    angle = math.radians(angle_degrees)
+    return {
+        "dragDir": (_rounded(math.cos(angle)), _rounded(math.sin(angle)), 0.0),
+        "liftDir": (_rounded(-math.sin(angle)), _rounded(math.cos(angle)), 0.0),
+        "pitchAxis": (0.0, 0.0, 1.0),
+    }
+
+
+def _rounded(value: float) -> float:
+    rounded = round(value, 6)
+    return 0.0 if abs(rounded) < 0.0000005 else rounded
 
 
 def _u_file(inlet_velocity: tuple[float, float, float], case_type: str) -> str:
@@ -189,22 +208,6 @@ boundaryField
 """
 
 
-def _read_physical_names(mesh_path: Path) -> set[str]:
-    text = mesh_path.read_text(errors="ignore")
-    names: set[str] = set()
-    in_section = False
-    for line in text.splitlines():
-        stripped = line.strip()
-        if stripped == "$PhysicalNames":
-            in_section = True
-            continue
-        if stripped == "$EndPhysicalNames":
-            break
-        if in_section and '"' in stripped:
-            names.add(stripped.split('"', 2)[1])
-    return names
-
-
 def _transport_properties() -> str:
     return f"""{foam_header("dictionary", "transportProperties")}
 transportModel  Newtonian;
@@ -224,8 +227,18 @@ RAS
 """
 
 
-def _control_dict(spec: SimulationSpec) -> str:
+def _control_dict(spec: SimulationSpec, case_type: str) -> str:
     end_time = max(50, min(spec.max_runtime_minutes * 10, 1000))
+    functions = (
+        """
+functions
+{
+    #include "forceCoeffs"
+}
+"""
+        if case_type == "airfoil_2d"
+        else ""
+    )
     return f"""{foam_header("dictionary", "controlDict")}
 application     simpleFoam;
 startFrom       startTime;
@@ -242,7 +255,58 @@ writeCompression off;
 timeFormat      general;
 timePrecision   6;
 runTimeModifiable true;
+{functions}"""
+
+
+def _force_coefficients_config(spec: SimulationSpec, case_type: str) -> dict:
+    if case_type != "airfoil_2d":
+        return {"enabled": False}
+    directions = force_coefficient_directions(spec.angle_of_attack)
+    return {
+        "enabled": True,
+        "patches": ["airfoil"],
+        "dragDir": list(directions["dragDir"]),
+        "liftDir": list(directions["liftDir"]),
+        "pitchAxis": list(directions["pitchAxis"]),
+        "CofR": [0.25, 0.0, 0.0],
+        "rhoInf": 1.0,
+        "magUInf": spec.velocity,
+        "lRef": 1.0,
+        "Aref": 0.01,
+        "span_m": 0.01,
+    }
+
+
+def _force_coeffs_file(config: dict) -> str:
+    return f"""{foam_header("dictionary", "forceCoeffs")}
+forceCoeffs1
+{{
+    type            forceCoeffs;
+    libs            ("libforces.so");
+    writeControl    timeStep;
+    timeInterval    1;
+    log             yes;
+    patches         (airfoil);
+    rho             rhoInf;
+    rhoInf          {_foam_number(config["rhoInf"])};
+    liftDir         {_foam_tuple(config["liftDir"])};
+    dragDir         {_foam_tuple(config["dragDir"])};
+    CofR            {_foam_tuple(config["CofR"])};
+    pitchAxis       {_foam_tuple(config["pitchAxis"])};
+    magUInf         {_foam_number(config["magUInf"])};
+    lRef            {_foam_number(config["lRef"])};
+    Aref            {_foam_number(config["Aref"])};
+}}
 """
+
+
+def _foam_tuple(values: list[float] | tuple[float, float, float]) -> str:
+    return "(" + " ".join(_foam_number(float(value)) for value in values) + ")"
+
+
+def _foam_number(value: float) -> str:
+    text = f"{value:.6f}".rstrip("0").rstrip(".")
+    return text if text and text != "-0" else "0"
 
 
 def _fv_schemes() -> str:

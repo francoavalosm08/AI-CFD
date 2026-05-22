@@ -75,10 +75,12 @@ class RunExecutor:
             run.completed_at = datetime.now(timezone.utc)
         except MeshConversionError as exc:
             run.error = str(exc)
+            run.artifacts = discover_artifacts(run.id, run_dir)
             self._set_status(run, RunStatus.failed, run.error)
             run.completed_at = datetime.now(timezone.utc)
         except Exception as exc:
             run.error = f"Simulation run failed: {exc}"
+            run.artifacts = discover_artifacts(run.id, run_dir)
             self._set_status(run, RunStatus.failed, run.error)
             run.completed_at = datetime.now(timezone.utc)
         return run

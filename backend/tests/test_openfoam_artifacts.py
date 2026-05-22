@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from app.openfoam.artifacts import write_residual_csv, zip_case
+from app.openfoam.artifacts import write_force_coefficients_csv, write_residual_csv, zip_case
 
 
 def test_write_residual_csv_creates_plot_data(tmp_path: Path) -> None:
@@ -14,6 +14,20 @@ def test_write_residual_csv_creates_plot_data(tmp_path: Path) -> None:
     assert output.read_text().splitlines() == [
         "field,initial,final,iterations",
         "Ux,0.1,1e-05,2",
+    ]
+
+
+def test_write_force_coefficients_csv_creates_plot_data(tmp_path: Path) -> None:
+    output = tmp_path / "forceCoeffs.csv"
+
+    write_force_coefficients_csv(
+        [{"time": 1.0, "Cl": 0.4, "Cd": 0.03, "Cm": -0.01}],
+        output,
+    )
+
+    assert output.read_text().splitlines() == [
+        "time,Cl,Cd,Cm",
+        "1.0,0.4,0.03,-0.01",
     ]
 
 

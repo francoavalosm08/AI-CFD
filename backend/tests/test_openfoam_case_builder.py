@@ -3,6 +3,7 @@ import math
 from pathlib import Path
 
 from app.openfoam.case_builder import build_openfoam_case
+from app.openfoam.case_builder import force_coefficient_directions
 from app.schemas import SimulationSpec
 
 
@@ -126,3 +127,66 @@ def test_case_builder_uses_2d_airfoil_boundaries_when_mesh_has_airfoil_patches(t
     assert "type            empty;" in u_text
     assert "frontAndBack" in p_text
     assert "type            empty;" in p_text
+
+
+def test_force_coefficient_directions_follow_angle_of_attack() -> None:
+    directions = force_coefficient_directions(2)
+
+    assert directions["dragDir"] == (0.999391, 0.034899, 0.0)
+    assert directions["liftDir"] == (-0.034899, 0.999391, 0.0)
+    assert directions["pitchAxis"] == (0.0, 0.0, 1.0)
+
+
+def test_case_builder_adds_force_coefficients_for_airfoil_2d_case(tmp_path: Path) -> None:
+    mesh = tmp_path / "naca4412.msh"
+    mesh.write_text(
+        "\n".join(
+            [
+                "$MeshFormat",
+                "2.2 0 8",
+                "$EndMeshFormat",
+                "$PhysicalNames",
+                "6",
+                '2 1 "inlet"',
+                '2 2 "outlet"',
+                '2 3 "farfield"',
+                '2 4 "airfoil"',
+                '2 5 "frontAndBack"',
+                '3 6 "internal"',
+                "$EndPhysicalNames",
+            ]
+        )
+    )
+    spec = SimulationSpec(
+        upload_id="upload-1",
+        units="m",
+        length_scale=1,
+        velocity=25,
+        angle_of_attack=2,
+    )
+
+    manifest = build_openfoam_case(spec=spec, mesh_path=mesh, case_dir=tmp_path / "case")
+
+    force_text = (tmp_path / "case" / "system" / "forceCoeffs").read_text()
+    control_text = (tmp_path / "case" / "system" / "controlDict").read_text()
+    assert '#include "forceCoeffs"' in control_text
+    assert "patches         (airfoil);" in force_text
+    assert "dragDir         (0.999391 0.034899 0);" in force_text
+    assert "liftDir         (-0.034899 0.999391 0);" in force_text
+    assert "pitchAxis       (0 0 1);" in force_text
+    assert "magUInf         25;" in force_text
+    assert "lRef            1;" in force_text
+    assert "Aref            0.01;" in force_text
+    assert manifest["force_coefficients"]["enabled"] is True
+    assert manifest["force_coefficients"]["patches"] == ["airfoil"]
+
+
+def test_case_builder_omits_force_coefficients_for_generic_mesh(tmp_path: Path) -> None:
+    mesh = tmp_path / "generic.msh"
+    mesh.write_text("$MeshFormat\n2.2 0 8\n", encoding="utf-8")
+
+    manifest = build_openfoam_case(spec=_spec(), mesh_path=mesh, case_dir=tmp_path / "case")
+
+    assert not (tmp_path / "case" / "system" / "forceCoeffs").exists()
+    assert '#include "forceCoeffs"' not in (tmp_path / "case" / "system" / "controlDict").read_text()
+    assert manifest["force_coefficients"]["enabled"] is False

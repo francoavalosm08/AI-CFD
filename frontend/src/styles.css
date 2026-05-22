@@ -76,6 +76,10 @@ h2 {
   color: #65746f;
 }
 
+.mesh-copy {
+  max-width: 720px;
+}
+
 .topbar-actions {
   display: flex;
   flex-wrap: wrap;
@@ -228,6 +232,32 @@ select {
   grid-template-columns: minmax(0, 1.4fr) minmax(260px, 0.8fr);
   gap: 18px;
   margin-top: 18px;
+}
+
+.result-metrics {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  margin-top: 18px;
+}
+
+.result-metrics div {
+  background: #ffffff;
+  border: 1px solid #d7ddd9;
+  border-radius: 8px;
+  display: grid;
+  gap: 4px;
+  padding: 14px;
+}
+
+.result-metrics span {
+  color: #65746f;
+  font-size: 12px;
+}
+
+.result-metrics strong {
+  color: #172026;
+  font-size: 22px;
 }
 
 .artifact-panel {

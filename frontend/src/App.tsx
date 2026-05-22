@@ -22,7 +22,16 @@ type EventLine = {
 
 const finalStatuses = new Set(["completed", "failed", "cancelled"]);
 
-export default function App() {
+type AppProps = {
+  initialRunId?: string;
+};
+
+type SummaryMetric = {
+  label: string;
+  value: string;
+};
+
+export default function App({ initialRunId }: AppProps = {}) {
   const fileInput = useRef<HTMLInputElement>(null);
   const [upload, setUpload] = useState<UploadRecord | null>(null);
   const [spec, setSpec] = useState<SimulationSpec | null>(null);
@@ -46,6 +55,15 @@ export default function App() {
       .then(setHealth)
       .catch(() => undefined);
   }, []);
+
+  useEffect(() => {
+    if (!initialRunId) return;
+    void refreshRun(initialRunId).catch((err) => {
+      setError(err instanceof Error ? err.message : "Could not load the run");
+    });
+  }, [initialRunId]);
+
+  const summaryMetrics = useMemo(() => buildSummaryMetrics(run), [run]);
 
   async function handleFile(file: File) {
     setBusy(true);
@@ -144,6 +162,9 @@ export default function App() {
           </div>
           <h2>Drop STEP, STL, Gmsh mesh, or OpenFOAM ZIP</h2>
           <p>.msh is the most reliable path for V1. STEP/STL conversion uses Gmsh when available.</p>
+          <p className="mesh-copy">
+            Production Gmsh MSH files should define physical names: airfoil, inlet, outlet, farfield, frontAndBack, and internal.
+          </p>
           <input
             ref={fileInput}
             type="file"
@@ -290,6 +311,17 @@ export default function App() {
 
         {run?.error && <div className="error-banner">{run.error}</div>}
 
+        {summaryMetrics.length > 0 && (
+          <div className="result-metrics">
+            {summaryMetrics.map((metric) => (
+              <div key={metric.label}>
+                <span>{metric.label}</span>
+                <strong>{metric.value}</strong>
+              </div>
+            ))}
+          </div>
+        )}
+
         <div className="results-grid">
           <div className="artifact-panel">
             <div className="panel-heading">
@@ -338,6 +370,53 @@ export default function App() {
       </section>
     </main>
   );
+}
+
+
+function buildSummaryMetrics(run: RunRecord | null): SummaryMetric[] {
+  if (!run) return [];
+  const summary = run.summary;
+  const manifest = asRecord(summary.manifest);
+  const checkMesh = asRecord(summary.check_mesh_summary);
+  const finalCoefficients = asRecord(summary.final_coefficients);
+  const metrics: SummaryMetric[] = [];
+
+  const cells = asNumber(checkMesh.cells);
+  if (cells !== null) metrics.push({ label: "Cells", value: cells.toLocaleString() });
+
+  const reynolds = asNumber(manifest.reynolds_number);
+  if (reynolds !== null) metrics.push({ label: "Re", value: reynolds.toExponential(3) });
+
+  if (typeof checkMesh.passed === "boolean") {
+    metrics.push({ label: "checkMesh", value: checkMesh.passed ? "Pass" : "Fail" });
+  }
+
+  for (const key of ["Cl", "Cd", "Cm"]) {
+    const value = asNumber(finalCoefficients[key]);
+    if (value !== null) metrics.push({ label: key, value: formatCoefficient(value) });
+  }
+
+  return metrics;
+}
+
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+}
+
+
+function asNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim() !== "") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+
+function formatCoefficient(value: number): string {
+  return Number(value.toPrecision(4)).toString();
 }
 
 

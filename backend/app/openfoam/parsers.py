@@ -47,6 +47,54 @@ def parse_residuals(log_text: str) -> list[dict]:
     return rows
 
 
+def parse_force_coefficients(text: str) -> list[dict]:
+    header: list[str] = []
+    rows: list[dict] = []
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not stripped:
+            continue
+        if stripped.startswith("#"):
+            candidate = stripped.lstrip("#").split()
+            if "Time" in candidate and {"Cm", "Cd", "Cl"}.issubset(candidate):
+                header = candidate
+            continue
+        if not header:
+            continue
+        values = stripped.split()
+        if len(values) < len(header):
+            continue
+        parsed = _force_row(header, values)
+        if parsed:
+            rows.append(parsed)
+    return rows
+
+
+def final_force_coefficients(rows: list[dict]) -> dict | None:
+    if not rows:
+        return None
+    final = rows[-1]
+    return {
+        "time": final["time"],
+        "Cm": final["Cm"],
+        "Cd": final["Cd"],
+        "Cl": final["Cl"],
+    }
+
+
+def _force_row(header: list[str], values: list[str]) -> dict | None:
+    by_name = dict(zip(header, values, strict=False))
+    try:
+        return {
+            "time": float(by_name["Time"]),
+            "Cm": float(by_name["Cm"]),
+            "Cd": float(by_name["Cd"]),
+            "Cl": float(by_name["Cl"]),
+        }
+    except (KeyError, ValueError):
+        return None
+
+
 def _first_int(text: str, pattern: str) -> int | None:
     match = re.search(pattern, text, re.MULTILINE)
     return int(match.group(1)) if match else None
