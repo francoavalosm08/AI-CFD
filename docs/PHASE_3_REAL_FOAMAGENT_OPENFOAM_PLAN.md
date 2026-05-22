@@ -10,7 +10,7 @@
 
 ## Implementation Status
 
-The first local OpenFOAM implementation slice is now in the repo:
+The first local OpenFOAM implementation and sample acceptance slice is now in the repo:
 
 - `CFD_RUNNER_MODE=local_openfoam` is wired into the backend.
 - The local runner writes deterministic OpenFOAM case files for `.msh` inputs.
@@ -18,8 +18,12 @@ The first local OpenFOAM implementation slice is now in the repo:
 - Dry-run mode writes the case, command manifest, dry-run log, and case zip without WSL/OpenFOAM.
 - The WSL path adapter, WSL preflight script, log/residual helpers, and no-API smoke script are implemented.
 - The frontend copy now presents generic CFD runs and displays runner mode from `/api/health`.
+- OpenFOAM 10 is installed and sourceable in WSL `Ubuntu-22.04` on this development machine.
+- `samples/external_box.geo` generates the committed first real-smoke mesh source.
+- The first non-dry-run WSL/OpenFOAM smoke completed from `.local-data/external_box.msh`.
+- Real WSL execution is staged under `/tmp/ai-cfd-workbench/<run_id>/case` and copied back to the Windows run directory to avoid OpenFOAM issues with spaces in the repo path.
 
-Remaining Phase 3 work is environment-dependent: install/verify WSL2 Ubuntu and OpenFOAM, run a real external-aero volume `.msh`, then refine boundary detection and force coefficient setup from real logs.
+Remaining work is hardening for real user meshes: refine boundary detection, force coefficient setup, mesh validation, and visualization from real logs/artifacts.
 
 ---
 
@@ -419,16 +423,24 @@ npm --prefix frontend run build
 .\scripts\smoke-local-openfoam.ps1
 ```
 
+For the committed sample geometry:
+
+```powershell
+gmsh samples\external_box.geo -3 -format msh2 -o .local-data\external_box.msh
+.\scripts\dev-openfoam-backend.ps1
+.\scripts\smoke-local-openfoam.ps1 -SampleMeshPath .local-data\external_box.msh -TimeoutSeconds 300
+```
+
 Expected results:
 
 - Existing fake-mode regression remains green.
 - The dry-run local OpenFOAM smoke runs without `.env` and without `OPENAI_API_KEY`.
 - WSL/OpenFOAM preflight reports exact missing dependencies if WSL or OpenFOAM is absent.
-- A real `.msh` local OpenFOAM smoke reaches `completed`, or fails with `checkMesh.log`, `solver.log`, command outputs, and a zipped case.
+- A real `.msh` local OpenFOAM smoke reaches `completed`, or fails with `checkMesh.log`, `solver.log`, command outputs, and a zipped case. The first sample smoke has reached `completed` on this machine.
 
 ## Acceptance Criteria
 
-No-API Phase 3 is complete when:
+No-API Phase 3 sample acceptance is complete when:
 
 - The default documented real-solver path does not require an API key.
 - A `.msh` upload can generate a deterministic OpenFOAM case.
@@ -438,6 +450,8 @@ No-API Phase 3 is complete when:
 - A real WSL/OpenFOAM run can complete or fail with useful logs/artifacts.
 - Fake mode still passes `scripts/release-check.ps1`.
 - Foam-Agent MCP remains optional and does not block normal V1 usage.
+
+That acceptance slice is complete on this development machine for the committed `samples/external_box.geo` sample. The next milestone is hardening the same path for user-provided aircraft/vehicle meshes.
 
 ## Out Of Scope For This Phase
 

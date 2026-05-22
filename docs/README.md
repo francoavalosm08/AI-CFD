@@ -12,7 +12,7 @@ Read these docs in this order when picking up the project.
 
 ## Current Product Direction
 
-Keep V1 focused on external aerodynamics. The app already has upload, spec capture, fake-mode execution, local OpenFOAM dry-run/case generation, live run events, artifacts, and dashboard viewing. The next environment-dependent milestone is a real WSL/OpenFOAM run from a valid `.msh`. Foam-Agent/MCP remains optional.
+Keep V1 focused on external aerodynamics. The app already has upload, spec capture, fake-mode execution, local OpenFOAM dry-run/case generation, live run events, artifacts, dashboard viewing, WSL/OpenFOAM preflight, and a first real sample run from `samples/external_box.geo`. The next milestone is hardening that path for real user aircraft/vehicle meshes. Foam-Agent/MCP remains optional.
 
 ## Verification Before Handoff
 

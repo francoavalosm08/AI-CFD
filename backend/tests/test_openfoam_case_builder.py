@@ -39,6 +39,11 @@ def test_case_builder_writes_expected_openfoam_files(tmp_path: Path) -> None:
     }
     written = {path.relative_to(case_dir).as_posix() for path in case_dir.rglob("*") if path.is_file()}
     assert expected.issubset(written)
+    assert "wallDist" in (case_dir / "system" / "fvSchemes").read_text()
+    assert "dimensions      [0 2 -2 0 0 0 0];" in (case_dir / "0" / "k").read_text()
+    assert "dimensions      [0 0 -1 0 0 0 0];" in (case_dir / "0" / "omega").read_text()
+    assert "dimensions      [0 2 -1 0 0 0 0];" in (case_dir / "0" / "nut").read_text()
+    assert "smoother        GaussSeidel;" in (case_dir / "system" / "fvSolution").read_text()
     assert manifest["solver"] == "simpleFoam"
 
 

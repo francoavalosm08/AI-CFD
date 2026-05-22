@@ -32,7 +32,7 @@ This is a simplified roadmap for non-software stakeholders, while keeping the ke
 
 **Keywords:** `smoke test`, `PowerShell`, `FastAPI`, `Vite`, `fake mode`, `local onboarding`.
 
-## Phase 3: Local OpenFOAM Real Solver Integration (No API Key) (In Progress)
+## Phase 3: Local OpenFOAM Real Solver Integration (No API Key) (Sample Acceptance Complete; Hardening In Progress)
 
 **Goal:** Move from fake execution to real CFD runs.
 
@@ -55,11 +55,15 @@ This is a simplified roadmap for non-software stakeholders, while keeping the ke
 - OpenFOAM command manifest and dry-run mode.
 - Log/residual/artifact parsing.
 - No-API dry-run smoke script.
+- OpenFOAM 10 installed and sourceable in WSL `Ubuntu-22.04`.
+- Committed sample geometry source: `samples/external_box.geo`.
+- First real WSL/OpenFOAM smoke reached `completed` using a `.msh` generated from that sample.
+- WSL-native staging under `/tmp/ai-cfd-workbench/<run_id>/case` for real runs, with copy-back to the Windows run directory.
 
-**Still required for real solver acceptance:**
-- Run WSL/OpenFOAM preflight on a machine with WSL2 Ubuntu and OpenFOAM installed.
-- Use a valid external-aero volume `.msh` for the first real OpenFOAM smoke run.
+**Still required for user-mesh hardening:**
 - Improve boundary detection, force coefficients, and visualization based on the first real logs.
+- Validate uploaded `.msh` boundary patches before solver execution.
+- Improve STEP/STL mesh-prep failure handling while keeping `.msh` first-class.
 
 **Keywords:** `OpenFOAM`, `WSL2`, `no API key`, `deterministic templates`, `real run`, `artifacts`.
 

@@ -47,45 +47,72 @@ def _source_target(value: str) -> str:
     return quote_bash(value)
 
 
-def build_wsl_bash_command(command: str, *, cwd: Path, bashrc: str) -> str:
-    case_dir = quote_bash(windows_to_wsl_path(cwd))
-    return f"source {_source_target(bashrc)} >/dev/null 2>&1 && cd {case_dir} && {command}"
+def build_openfoam_source_command(bashrc: str) -> str:
+    return f"set +u; source {_source_target(bashrc)} >/dev/null 2>&1 || true"
+
+
+def build_wsl_bash_command(
+    command: str, *, cwd: Path | None = None, bashrc: str, cwd_wsl: str | None = None
+) -> str:
+    if cwd_wsl is None:
+        if cwd is None:
+            raise ValueError("Either cwd or cwd_wsl is required")
+        cwd_wsl = windows_to_wsl_path(cwd)
+    case_dir = quote_bash(cwd_wsl)
+    return f"{build_openfoam_source_command(bashrc)}; cd {case_dir} && {command}"
 
 
 def make_wsl_command_executor(
-    *, distro: str = "Ubuntu", bashrc: str = "/opt/openfoam*/etc/bashrc"
+    *,
+    distro: str = "Ubuntu",
+    bashrc: str = "/opt/openfoam*/etc/bashrc",
+    cwd_wsl: str | None = None,
 ) -> Callable[[str, Path, int], Awaitable[CommandResult]]:
     async def execute(command: str, cwd: Path, timeout_seconds: int) -> CommandResult:
-        bash_command = build_wsl_bash_command(command, cwd=cwd, bashrc=bashrc)
-        process = await asyncio.create_subprocess_exec(
-            "wsl.exe",
-            "-d",
-            distro,
-            "bash",
-            "-lc",
-            bash_command,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
+        bash_command = build_wsl_bash_command(
+            command,
+            cwd=cwd,
+            bashrc=bashrc,
+            cwd_wsl=cwd_wsl,
         )
-        try:
-            stdout, stderr = await asyncio.wait_for(process.communicate(), timeout_seconds)
-        except TimeoutError:
-            process.kill()
-            stdout, stderr = await process.communicate()
-            return CommandResult(
-                command=command,
-                returncode=124,
-                stdout=stdout.decode(errors="replace"),
-                stderr=(stderr.decode(errors="replace") + "\nCommand timed out.").strip(),
-            )
-        return CommandResult(
-            command=command,
-            returncode=process.returncode,
-            stdout=stdout.decode(errors="replace"),
-            stderr=stderr.decode(errors="replace"),
+        return await run_wsl_shell_command(
+            bash_command,
+            distro=distro,
+            timeout_seconds=timeout_seconds,
+            display_command=command,
         )
 
     return execute
+
+
+async def run_wsl_shell_command(
+    command: str,
+    *,
+    distro: str,
+    timeout_seconds: int,
+    display_command: str | None = None,
+) -> CommandResult:
+    try:
+        result = await asyncio.to_thread(
+            subprocess.run,
+            ["wsl.exe", "-d", distro, "bash", "-lc", command],
+            capture_output=True,
+            text=True,
+            timeout=timeout_seconds,
+        )
+    except subprocess.TimeoutExpired as exc:
+        return CommandResult(
+            command=display_command or command,
+            returncode=124,
+            stdout=_normalize_completed_output(exc.stdout),
+            stderr=(_normalize_completed_output(exc.stderr) + "\nCommand timed out.").strip(),
+        )
+    return CommandResult(
+        command=display_command or command,
+        returncode=result.returncode,
+        stdout=result.stdout,
+        stderr=result.stderr,
+    )
 
 
 @dataclass
@@ -125,7 +152,7 @@ def run_wsl_preflight(
     checks.append(f"WSL distro '{selected_distro}' found")
 
     command_checks = " && ".join(f"command -v {command}" for command in required_commands)
-    command = f"source {bashrc} >/dev/null 2>&1 && {command_checks}"
+    command = f"set +u; source {bashrc} >/dev/null 2>&1 || true; {command_checks}"
     result = subprocess.run(
         ["wsl.exe", "-d", selected_distro, "bash", "-lc", command],
         capture_output=True,
@@ -141,3 +168,11 @@ def run_wsl_preflight(
     else:
         checks.append("OpenFOAM commands found")
     return OpenFoamPreflightResult(ok=not errors, checks=checks, errors=errors)
+
+
+def _normalize_completed_output(value: str | bytes | None) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bytes):
+        return value.decode(errors="replace")
+    return value

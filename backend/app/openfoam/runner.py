@@ -4,14 +4,19 @@ import asyncio
 import inspect
 import json
 from collections.abc import Awaitable, Callable
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 from app.openfoam.artifacts import write_residual_csv, zip_case
 from app.openfoam.case_builder import build_openfoam_case
 from app.openfoam.parsers import parse_residuals
 from app.openfoam.runner_types import CommandResult
-from app.openfoam.wsl import make_wsl_command_executor, windows_to_wsl_path
+from app.openfoam.wsl import (
+    make_wsl_command_executor,
+    quote_bash,
+    run_wsl_shell_command,
+    windows_to_wsl_path,
+)
 from app.schemas import SimulationSpec
 
 
@@ -38,6 +43,7 @@ class LocalOpenFoamRunner:
         self.wsl_distro = wsl_distro
         self.openfoam_bashrc = openfoam_bashrc
         self.timeout_seconds = timeout_seconds
+        self._uses_default_executor = command_executor is None
         if command_executor is not None:
             self.command_executor = command_executor
         elif runtime == "wsl":
@@ -80,6 +86,21 @@ class LocalOpenFoamRunner:
             command_manifest["wsl_distro"] = self.wsl_distro
             command_manifest["openfoam_bashrc"] = self.openfoam_bashrc
             command_manifest["case_dir_wsl"] = windows_to_wsl_path(case_dir)
+
+        execution_case_dir = case_dir
+        command_executor = self.command_executor
+        staged_case_dir_wsl: str | None = None
+        if self.runtime == "wsl" and self._uses_default_executor and not self.dry_run:
+            staged_case_dir_wsl = f"/tmp/ai-cfd-workbench/{output.name}/case"
+            command_manifest["execution_case_dir_wsl"] = staged_case_dir_wsl
+            await _emit(emit, "preprocessing", "Staging OpenFOAM case into WSL-native storage")
+            await self._stage_case_to_wsl(case_dir, staged_case_dir_wsl)
+            command_executor = make_wsl_command_executor(
+                distro=self.wsl_distro,
+                bashrc=self.openfoam_bashrc,
+                cwd_wsl=staged_case_dir_wsl,
+            )
+
         (output / "openfoam-commands.json").write_text(
             json.dumps(command_manifest, indent=2),
             encoding="utf-8",
@@ -103,8 +124,8 @@ class LocalOpenFoamRunner:
         results: list[dict[str, Any]] = []
         await _emit(emit, "meshing", "Importing uploaded mesh with gmshToFoam")
         for command in commands:
-            result = await self.command_executor(
-                command["command"], case_dir, self.timeout_seconds
+            result = await command_executor(
+                command["command"], execution_case_dir, self.timeout_seconds
             )
             results.append(_result_dict(result, command["name"], command["required"]))
             self._write_command_log(output, command["name"], result)
@@ -118,6 +139,8 @@ class LocalOpenFoamRunner:
         residuals = parse_residuals(solver_log.read_text(encoding="utf-8") if solver_log.exists() else "")
         if residuals:
             write_residual_csv(residuals, output / "residuals.csv")
+        if staged_case_dir_wsl:
+            await self._copy_wsl_case_back(staged_case_dir_wsl, case_dir)
         archive = zip_case(case_dir, output / "openfoam-case.zip")
         await _emit(emit, "visualizing", "Collected local OpenFOAM artifacts")
         return {
@@ -151,6 +174,38 @@ class LocalOpenFoamRunner:
         if result.stderr:
             text = f"{text}\n--- stderr ---\n{result.stderr}"
         (output_dir / filename).write_text(text, encoding="utf-8")
+
+    async def _stage_case_to_wsl(self, case_dir: Path, staged_case_dir_wsl: str) -> None:
+        staged_parent = str(PurePosixPath(staged_case_dir_wsl).parent)
+        command = (
+            f"rm -rf {quote_bash(staged_case_dir_wsl)} && "
+            f"mkdir -p {quote_bash(staged_parent)} && "
+            f"cp -a {quote_bash(windows_to_wsl_path(case_dir))} {quote_bash(staged_parent)}/case"
+        )
+        result = await run_wsl_shell_command(
+            command,
+            distro=self.wsl_distro,
+            timeout_seconds=self.timeout_seconds,
+            display_command="stage OpenFOAM case into WSL",
+        )
+        if result.returncode != 0:
+            raise RuntimeError(f"WSL case staging failed: {(result.stderr or result.stdout).strip()}")
+
+    async def _copy_wsl_case_back(self, staged_case_dir_wsl: str, case_dir: Path) -> None:
+        case_dir.parent.mkdir(parents=True, exist_ok=True)
+        case_dir.mkdir(parents=True, exist_ok=True)
+        command = (
+            f"cp -a {quote_bash(staged_case_dir_wsl)}/. "
+            f"{quote_bash(windows_to_wsl_path(case_dir))}/"
+        )
+        result = await run_wsl_shell_command(
+            command,
+            distro=self.wsl_distro,
+            timeout_seconds=self.timeout_seconds,
+            display_command="copy OpenFOAM case back from WSL",
+        )
+        if result.returncode != 0:
+            raise RuntimeError(f"WSL case copy-back failed: {(result.stderr or result.stdout).strip()}")
 
 
 async def _run_shell_command(command: str, cwd: Path, timeout_seconds: int) -> CommandResult:

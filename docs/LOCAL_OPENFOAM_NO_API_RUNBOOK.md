@@ -1,6 +1,6 @@
 # Local OpenFOAM No-API Runbook
 
-This is the V1 real-solver path that avoids runtime LLM/API keys. The case-generation and dry-run path is implemented; real solver acceptance depends on WSL2/OpenFOAM being installed on the machine.
+This is the V1 real-solver path that avoids runtime LLM/API keys. The case-generation path, dry-run path, WSL preflight, and first real WSL/OpenFOAM sample smoke are implemented.
 
 ## Purpose
 
@@ -38,6 +38,13 @@ Dry-run workflow, no WSL/OpenFOAM required:
 .\scripts\smoke-local-openfoam.ps1 -DryRun
 ```
 
+Install/verify WSL OpenFOAM runtime:
+
+```powershell
+.\scripts\install-openfoam-wsl.ps1 -UseWslRoot
+.\scripts\dev-openfoam-wsl.ps1 -CheckOnly
+```
+
 Real solver workflow after WSL/OpenFOAM setup:
 
 ```powershell
@@ -45,6 +52,13 @@ Real solver workflow after WSL/OpenFOAM setup:
 .\scripts\dev-openfoam-backend.ps1
 .\scripts\dev-frontend.ps1
 .\scripts\smoke-local-openfoam.ps1 -SampleMeshPath <valid-external-aero-volume.msh>
+```
+
+First committed sample mesh generator:
+
+```powershell
+gmsh samples\external_box.geo -3 -format msh2 -o .local-data\external_box.msh
+.\scripts\smoke-local-openfoam.ps1 -SampleMeshPath .local-data\external_box.msh -TimeoutSeconds 300
 ```
 
 None of these should require `.env` or `OPENAI_API_KEY`.
@@ -105,13 +119,16 @@ The repo currently has:
 - log/residual/artifact helpers
 - local runner wired into `/api/runs`
 - no-API smoke scripts
+- OpenFOAM 10 installed and sourceable in WSL `Ubuntu-22.04` on this development machine
+- first real smoke mesh source in `samples/external_box.geo`
+- WSL-native staging under `/tmp/ai-cfd-workbench/<run_id>/case` for real runs, with copy-back into `.local-data/runs/<run_id>/case`
 
 Next implementation work:
 
-1. Run dry-run smoke in local verification after script validation is stable.
-2. Install/verify WSL2 Ubuntu and OpenFOAM.
-3. Run a real external-aero `.msh` through `smoke-local-openfoam.ps1`.
-4. Improve boundary detection and force coefficient setup based on real OpenFOAM logs.
+1. Improve boundary detection and force coefficient setup based on real OpenFOAM logs.
+2. Validate `.msh` boundary patches before solver execution and return a clear API/UI error if required patches are missing.
+3. Improve STEP/STL mesh-prep failures while keeping `.msh` the most reliable first-class input.
+4. Add richer visualization after VTK/log artifacts are reliable.
 
 ## Troubleshooting Targets
 

@@ -195,6 +195,10 @@ Location: `samples/`
 - `samples/wing.msh`
   - sample mesh used by smoke tests and browser E2E
 
+- `samples/external_box.geo`
+  - Gmsh source for the first real WSL/OpenFOAM acceptance mesh
+  - generate the disposable `.msh` with `gmsh samples\external_box.geo -3 -format msh2 -o .local-data\external_box.msh`
+
 ### Docs
 
 Location: `docs/`
@@ -284,7 +288,8 @@ Status:
 - deterministic case builder, command manifest, dry-run runner, parsers, and job wiring are implemented
 - WSL preflight and local smoke scripts are implemented
 - dry-run acceptance does not require WSL/OpenFOAM
-- real solver acceptance still requires WSL2 Ubuntu and OpenFOAM installed
+- WSL2 Ubuntu/OpenFOAM 10 is installed and sourceable on this development machine
+- the first real sample smoke passed using `.local-data/external_box.msh`
 - does not require `.env` or `OPENAI_API_KEY`
 
 Dry-run startup:
@@ -300,6 +305,14 @@ Real local startup after OpenFOAM installation:
 .\scripts\dev-openfoam-wsl.ps1 -CheckOnly
 .\scripts\dev-openfoam-backend.ps1
 .\scripts\smoke-local-openfoam.ps1 -SampleMeshPath <valid-external-aero-volume.msh>
+```
+
+Committed sample acceptance flow:
+
+```powershell
+gmsh samples\external_box.geo -3 -format msh2 -o .local-data\external_box.msh
+.\scripts\dev-openfoam-backend.ps1
+.\scripts\smoke-local-openfoam.ps1 -SampleMeshPath .local-data\external_box.msh -TimeoutSeconds 300
 ```
 
 ### Optional MCP Foam-Agent Mode
@@ -426,7 +439,7 @@ cd backend
 Expected:
 
 ```text
-28 passed
+50 passed
 ```
 
 ## Current Verified State
@@ -435,10 +448,14 @@ As of May 22, 2026:
 
 - Gmsh installed through `winget`.
 - `gmsh -version` reports `4.13.1`.
+- WSL distro `Ubuntu-22.04` has OpenFOAM 10 installed under `/opt/openfoam10`.
+- `scripts/dev-openfoam-wsl.ps1 -CheckOnly` passes and finds `gmshToFoam`, `checkMesh`, `simpleFoam`, and `foamToVTK`.
+- A real local OpenFOAM sample smoke reached `completed` using a mesh generated from `samples/external_box.geo`.
+- Real WSL runs stage execution under `/tmp/ai-cfd-workbench/<run_id>/case` and copy the case back into the Windows run directory before artifact packaging.
 - `scripts/release-check.ps1` passes with backend tests, frontend tests, fake-mode smoke, Playwright E2E, and local OpenFOAM dry-run smoke.
 - `npm --prefix frontend run build` passes.
 - Optional Foam-Agent acceptance currently stops because Docker Desktop is not running and `.env` is missing.
-- Local OpenFOAM case generation/dry-run implementation is in place; real solver acceptance is pending WSL2/OpenFOAM runtime setup and a valid external-aero `.msh`.
+- Local OpenFOAM case generation, dry-run acceptance, WSL preflight, and first real sample smoke are in place.
 
 ## API Surface
 
@@ -640,7 +657,7 @@ Result:
 
 ### Phase 3: Local OpenFOAM Real Solver Integration
 
-In progress. The plan has pivoted away from required Foam-Agent/API-key execution.
+Sample acceptance complete; hardening in progress. The plan has pivoted away from required Foam-Agent/API-key execution.
 
 Goal:
 
@@ -654,12 +671,15 @@ Implemented:
 - add local OpenFOAM runner integration
 - add no-API smoke scripts
 - keep optional MCP mode passing but off the primary path
+- install/source OpenFOAM 10 in WSL `Ubuntu-22.04`
+- complete the first real `.msh` local OpenFOAM smoke using `samples/external_box.geo`
 
 Remaining:
 
-- run WSL/OpenFOAM preflight on a machine with the runtime installed
-- run a real `.msh` external-aero case through OpenFOAM
-- improve boundary detection and force coefficient setup after the first real case
+- improve boundary detection and force coefficient setup from real logs
+- validate user `.msh` boundary patches before solver execution
+- improve STEP/STL mesh-prep error handling
+- add richer browser visualization after VTK/log artifacts are stable
 
 ### Phase 4: Runtime Reproducibility
 

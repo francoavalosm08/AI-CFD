@@ -60,7 +60,24 @@ Commands:
 .\scripts\smoke-local-openfoam.ps1 -DryRun
 ```
 
-After WSL2 Ubuntu and OpenFOAM are installed, start the backend without `-DryRun` and use a real external-aero `.msh`:
+If OpenFOAM is not installed in WSL yet, install and verify the expected Ubuntu 22.04/OpenFOAM 10 runtime:
+
+```powershell
+.\scripts\install-openfoam-wsl.ps1 -UseWslRoot
+.\scripts\dev-openfoam-wsl.ps1 -CheckOnly
+```
+
+After WSL2 Ubuntu and OpenFOAM are installed, start the backend without `-DryRun` and use a real external-aero `.msh`. The repo includes a simple Gmsh source file for this acceptance smoke:
+
+```powershell
+gmsh samples\external_box.geo -3 -format msh2 -o .local-data\external_box.msh
+.\scripts\dev-openfoam-backend.ps1
+.\scripts\smoke-local-openfoam.ps1 -SampleMeshPath .local-data\external_box.msh -TimeoutSeconds 300
+```
+
+The backend stages real WSL runs under `/tmp/ai-cfd-workbench/<run_id>/case` and copies the finished case back into `.local-data/runs/<run_id>/case`. This avoids OpenFOAM path issues when the Windows repo path contains spaces.
+
+For your own meshes:
 
 ```powershell
 .\scripts\dev-openfoam-backend.ps1
@@ -191,6 +208,7 @@ The Vite dev server proxies `/api` to `http://127.0.0.1:8000` to avoid Windows l
 | Smoke test fails on upload/run | Backend dependencies incomplete | Rerun `.\scripts\local-verify.ps1` and check error output |
 | STEP/STL conversion fails | `gmsh` missing | Install Gmsh or use `.msh` upload |
 | Local OpenFOAM preflight fails | WSL2/OpenFOAM missing | Install WSL2 Ubuntu and OpenFOAM, then rerun `.\scripts\dev-openfoam-wsl.ps1 -CheckOnly` |
+| Real OpenFOAM run fails in a path containing spaces | OpenFOAM utilities can be brittle with mounted Windows paths | Use the built-in backend runner, which stages execution in WSL `/tmp` before copying artifacts back |
 | `smoke-local-openfoam.ps1 -DryRun` reports wrong mode | Backend is still in fake mode | Start backend with `.\scripts\dev-openfoam-backend.ps1 -DryRun` |
 | `dev-foamagent.ps1` fails immediately | Docker Desktop stopped | Start Docker Desktop and rerun `-CheckOnly` |
 | `dev-real-backend.ps1` fails before startup | Foam-Agent MCP not reachable | Run `dev-foamagent.ps1`, then `smoke-mcp-health.ps1` |

@@ -101,7 +101,13 @@ if ($health.status -ne "ok") {
     Fail "Health endpoint returned unexpected status '$($health.status)'."
 }
 
-$runnerMode = if ($health.runner_mode) { $health.runner_mode } else { $health.foam_agent_mode }
+$runnerMode = $null
+if ($health.PSObject.Properties.Name -contains "runner_mode") {
+    $runnerMode = $health.runner_mode
+}
+if ([string]::IsNullOrWhiteSpace($runnerMode) -and ($health.PSObject.Properties.Name -contains "foam_agent_mode")) {
+    $runnerMode = $health.foam_agent_mode
+}
 if ($runnerMode -ne "local_openfoam") {
     Fail "Smoke test expects CFD_RUNNER_MODE=local_openfoam, but backend reported '$runnerMode'."
 }

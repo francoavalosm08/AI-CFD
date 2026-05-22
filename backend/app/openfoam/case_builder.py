@@ -18,10 +18,10 @@ def build_openfoam_case(*, spec: SimulationSpec, mesh_path: Path, case_dir: Path
     inlet_velocity = _inlet_velocity(spec.velocity, spec.angle_of_attack)
     files = {
         "0/U": _u_file(inlet_velocity),
-        "0/p": _scalar_field("p", "volScalarField", "0"),
-        "0/k": _scalar_field("k", "volScalarField", "0.01"),
-        "0/omega": _scalar_field("omega", "volScalarField", "1"),
-        "0/nut": _scalar_field("nut", "volScalarField", "0"),
+        "0/p": _scalar_field("p", "volScalarField", "0", "[0 2 -2 0 0 0 0]"),
+        "0/k": _scalar_field("k", "volScalarField", "0.01", "[0 2 -2 0 0 0 0]"),
+        "0/omega": _scalar_field("omega", "volScalarField", "1", "[0 0 -1 0 0 0 0]"),
+        "0/nut": _scalar_field("nut", "volScalarField", "0", "[0 2 -1 0 0 0 0]"),
         "constant/transportProperties": _transport_properties(),
         "constant/turbulenceProperties": _turbulence_properties(),
         "system/controlDict": _control_dict(spec),
@@ -86,9 +86,9 @@ boundaryField
 """
 
 
-def _scalar_field(name: str, class_name: str, internal_value: str) -> str:
+def _scalar_field(name: str, class_name: str, internal_value: str, dimensions: str) -> str:
     return f"""{foam_header(class_name, name)}
-dimensions      [0 0 0 0 0 0 0];
+dimensions      {dimensions};
 internalField   uniform {internal_value};
 boundaryField
 {{
@@ -168,6 +168,7 @@ divSchemes
 laplacianSchemes {{ default Gauss linear corrected; }}
 interpolationSchemes {{ default linear; }}
 snGradSchemes {{ default corrected; }}
+wallDist {{ method meshWave; }}
 """
 
 
@@ -175,7 +176,13 @@ def _fv_solution() -> str:
     return f"""{foam_header("dictionary", "fvSolution")}
 solvers
 {{
-    p {{ solver GAMG; tolerance 1e-7; relTol 0.01; }}
+    p
+    {{
+        solver          GAMG;
+        tolerance       1e-7;
+        relTol          0.01;
+        smoother        GaussSeidel;
+    }}
     U {{ solver smoothSolver; smoother symGaussSeidel; tolerance 1e-8; relTol 0.1; }}
     "(k|omega)" {{ solver smoothSolver; smoother symGaussSeidel; tolerance 1e-8; relTol 0.1; }}
 }}

@@ -41,9 +41,20 @@ def test_build_wsl_bash_command_sources_openfoam_and_enters_case_dir(tmp_path: P
         bashrc="/opt/openfoam10/etc/bashrc",
     )
 
-    assert command.startswith("source /opt/openfoam10/etc/bashrc")
+    assert command.startswith("set +u; source /opt/openfoam10/etc/bashrc")
+    assert "set -u" not in command
     assert f"cd {quote_bash(windows_to_wsl_path(case_dir))}" in command
     assert command.endswith("&& simpleFoam")
+
+
+def test_build_wsl_bash_command_can_use_native_wsl_case_dir() -> None:
+    command = build_wsl_bash_command(
+        "checkMesh",
+        cwd_wsl="/tmp/ai-cfd-workbench/run 1/case",
+        bashrc="/opt/openfoam10/etc/bashrc",
+    )
+
+    assert "cd '/tmp/ai-cfd-workbench/run 1/case'" in command
 
 
 def test_normalize_wsl_distros_removes_null_padding() -> None:

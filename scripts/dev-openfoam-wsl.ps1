@@ -44,13 +44,13 @@ Write-Host "[ok] WSL distro '$Distro' found."
 $requiredCommands = @("gmshToFoam", "checkMesh", "simpleFoam")
 $optionalCommands = @("foamToVTK")
 $requiredCheck = (($requiredCommands + $optionalCommands) | ForEach-Object { "command -v $_" }) -join " && "
-$bashCommand = "source $Bashrc >/dev/null 2>&1 && $requiredCheck"
+$bashCommand = "set +u; source $Bashrc >/dev/null 2>&1 || true; $requiredCheck"
 
 Write-Host "Checking OpenFOAM environment in WSL ($Distro) ..."
 $checkOutput = & wsl.exe -d $Distro bash -lc $bashCommand 2>&1
 if ($LASTEXITCODE -ne 0) {
     $requiredOnly = ($requiredCommands | ForEach-Object { "command -v $_" }) -join " && "
-    $requiredCommand = "source $Bashrc >/dev/null 2>&1 && $requiredOnly"
+    $requiredCommand = "set +u; source $Bashrc >/dev/null 2>&1 || true; $requiredOnly"
     $requiredOutput = & wsl.exe -d $Distro bash -lc $requiredCommand 2>&1
     if ($LASTEXITCODE -ne 0) {
         Fail ("OpenFOAM is not ready. Could not source '{0}' and find required commands: {1}. Output: {2}" -f $Bashrc, ($requiredCommands -join ", "), ($requiredOutput -join "`n"))
