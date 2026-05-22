@@ -22,8 +22,13 @@ The first local OpenFOAM implementation and sample acceptance slice is now in th
 - `samples/external_box.geo` generates the committed first real-smoke mesh source.
 - The first non-dry-run WSL/OpenFOAM smoke completed from `.local-data/external_box.msh`.
 - Real WSL execution is staged under `/tmp/ai-cfd-workbench/<run_id>/case` and copied back to the Windows run directory to avoid OpenFOAM issues with spaces in the repo path.
+- NACA 4412 `airfoil_2d` validation passes with OpenFOAM-derived pressure, velocity, residual, and force coefficient artifacts.
+- Production `.msh` guidance is documented in `docs/GMSH_AIRFOIL_2D_TEMPLATE.md`.
+- STEP/STL conversion failures now point out missing Gmsh, missing volume meshes, missing physical names, and bad geometry.
 
-Remaining work is hardening for real user meshes: improve STEP/STL mesh-prep errors, add user-facing `.msh` physical-name examples, and upgrade visualization after static OpenFOAM-derived outputs are stable.
+Remaining work is broader real user mesh testing and richer visualization after static OpenFOAM-derived outputs stay stable.
+
+The task checklist below is retained as historical implementation detail. The current source of truth is this status section, `docs/EXTERNAL_AERO_V1_ROADMAP.md`, `docs/LOCAL_OPENFOAM_NO_API_RUNBOOK.md`, and `AGENTS.md`.
 
 ---
 
@@ -451,7 +456,7 @@ No-API Phase 3 sample acceptance is complete when:
 - Fake mode still passes `scripts/release-check.ps1`.
 - Foam-Agent MCP remains optional and does not block normal V1 usage.
 
-That acceptance slice is complete on this development machine for the committed `samples/external_box.geo` sample. The next milestone is hardening the same path for user-provided aircraft/vehicle meshes.
+That acceptance slice is complete on this development machine for the committed `samples/external_box.geo` sample and the generated NACA 4412 airfoil validation case. The next milestone is testing more user-provided aircraft/vehicle `.msh` files against the documented physical-name contract.
 
 ## Out Of Scope For This Phase
 

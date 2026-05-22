@@ -11,7 +11,7 @@ Automating CFD with a local browser app for external-aerodynamics runs through O
 
 ## Project Handoff And Docs
 
-Fresh LLM/coding-agent pickup instructions are in `AGENTS.md`. The docs index is in `docs/README.md`, with the current next milestone in `docs/PHASE_3_REAL_FOAMAGENT_OPENFOAM_PLAN.md`. That plan now targets local OpenFOAM without a runtime API key.
+Fresh LLM/coding-agent pickup instructions are in `AGENTS.md`. The docs index is in `docs/README.md`, with the current roadmap in `docs/EXTERNAL_AERO_V1_ROADMAP.md`. The local OpenFOAM implementation plan is in `docs/PHASE_3_REAL_FOAMAGENT_OPENFOAM_PLAN.md` and does not require a runtime API key.
 
 ## Local Non-Docker Development (Windows + Fake Mode)
 
@@ -103,7 +103,7 @@ For your own meshes:
 .\scripts\smoke-local-openfoam.ps1
 ```
 
-See `docs/PHASE_3_REAL_FOAMAGENT_OPENFOAM_PLAN.md` and `docs/LOCAL_OPENFOAM_NO_API_RUNBOOK.md`.
+For dependable V1 airfoil runs, use a premeshed Gmsh 2.2 ASCII `.msh` with physical names `airfoil`, `inlet`, `outlet`, `farfield`, `frontAndBack`, and `internal`. See `docs/GMSH_AIRFOIL_2D_TEMPLATE.md`, `docs/PHASE_3_REAL_FOAMAGENT_OPENFOAM_PLAN.md`, and `docs/LOCAL_OPENFOAM_NO_API_RUNBOOK.md`.
 
 ## Optional Foam-Agent/OpenFOAM Mode (Local Docker + MCP)
 
@@ -225,7 +225,7 @@ The Vite dev server proxies `/api` to `http://127.0.0.1:8000` to avoid Windows l
 | `dev-backend.ps1` fails with port in use | Another process already using backend port | Stop process on `:8000` or run `.\scripts\dev-backend.ps1 -Port <new-port>` |
 | `smoke-fake-run.ps1` cannot reach `/api/health` | Backend not running | Start backend with `.\scripts\dev-backend.ps1` |
 | Smoke test fails on upload/run | Backend dependencies incomplete | Rerun `.\scripts\local-verify.ps1` and check error output |
-| STEP/STL conversion fails | `gmsh` missing | Install Gmsh or use `.msh` upload |
+| STEP/STL conversion fails | `gmsh` missing, surface-only geometry, missing volume mesh, or missing physical names | Install Gmsh, repair the geometry into a cleaner closed STL/STEP, or use a premeshed Gmsh `.msh` upload |
 | `.msh` airfoil run fails before OpenFOAM | Missing required Gmsh physical names | Use `airfoil`, `inlet`, `outlet`, `farfield`, `frontAndBack`, and `internal` |
 | Local OpenFOAM preflight fails | WSL2/OpenFOAM missing | Install WSL2 Ubuntu and OpenFOAM, then rerun `.\scripts\dev-openfoam-wsl.ps1 -CheckOnly` |
 | Real OpenFOAM run fails in a path containing spaces | OpenFOAM utilities can be brittle with mounted Windows paths | Use the built-in backend runner, which stages execution in WSL `/tmp` before copying artifacts back |

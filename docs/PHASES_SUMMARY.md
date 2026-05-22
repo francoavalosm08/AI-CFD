@@ -32,7 +32,7 @@ This is a simplified roadmap for non-software stakeholders, while keeping the ke
 
 **Keywords:** `smoke test`, `PowerShell`, `FastAPI`, `Vite`, `fake mode`, `local onboarding`.
 
-## Phase 3: Local OpenFOAM Real Solver Integration (No API Key) (Airfoil Hardening In Progress)
+## Phase 3: Local OpenFOAM Real Solver Integration (No API Key) (V1 Candidate)
 
 **Goal:** Move from fake execution to real CFD runs.
 
@@ -70,11 +70,14 @@ This is a simplified roadmap for non-software stakeholders, while keeping the ke
 - Force coefficient artifacts: `forceCoeffs.dat`, `forceCoeffs.csv`, and `force-coefficients.png`.
 - Dashboard summary cards for cells, Reynolds number, `checkMesh`, `Cl`, `Cd`, and `Cm`.
 - Dedicated smoke scripts for NACA validation and bad mesh validation.
+- User-facing production `.msh` mesh contract in `docs/GMSH_AIRFOIL_2D_TEMPLATE.md`.
+- Clearer STEP/STL conversion failures for missing Gmsh, missing volume meshes, missing physical names, and bad geometry.
+- WSL/OpenFOAM preflight now also reports Windows Gmsh availability for NACA generation and STEP/STL conversion.
 
-**Still required for user-mesh hardening:**
+**Remaining after the current V1 candidate:**
 - Upgrade the lightweight PNG previews to richer contour/interactivity when PyVista/vtk.js is introduced.
-- Improve STEP/STL mesh-prep failure handling while keeping `.msh` first-class.
-- Add more user-facing Gmsh physical-name examples/templates.
+- Keep running fresh real NACA and bad-mesh smoke validation after solver-path changes.
+- Broaden user-mesh examples after real third-party `.msh` files are tested.
 
 **Keywords:** `OpenFOAM`, `WSL2`, `no API key`, `deterministic templates`, `real run`, `artifacts`.
 
@@ -82,10 +85,12 @@ This is a simplified roadmap for non-software stakeholders, while keeping the ke
 
 **Goal:** Make the local OpenFOAM workflow reproducible across machines.
 
-**What it should do:**
-- Standardize WSL2/OpenFOAM setup checks.
-- Decide whether Docker stays as optional parity/testing infrastructure.
-- Keep local non-Docker workflow for fast iteration.
+**What is implemented now:**
+- WSL2/OpenFOAM setup checks through `scripts/dev-openfoam-wsl.ps1 -CheckOnly`.
+- Windows Gmsh visibility check in the same preflight.
+- Dry-run, real NACA, and bad-mesh smoke scripts.
+- Docker/Foam-Agent remains optional parity/advanced infrastructure, not a V1 requirement.
+- Local non-Docker workflow stays the primary iteration path.
 
 **Keywords:** `WSL2`, `OpenFOAM`, `integration testing`, `environment parity`.
 
@@ -93,9 +98,13 @@ This is a simplified roadmap for non-software stakeholders, while keeping the ke
 
 **Goal:** Prepare for wider internal/external usage.
 
-**What it should do:**
-- Add CI checks (`pytest`, frontend tests, smoke checks where possible).
-- Define quality gates and release checklist.
-- Document operational runbook and known limits.
+**What is implemented locally:**
+- Backend pytest, frontend Vitest, Playwright E2E, fake smoke, dry-run OpenFOAM smoke, real NACA smoke, and bad-mesh smoke quality gates.
+- Release checklist through `scripts/release-check.ps1` plus the real-solver acceptance scripts.
+- Operational runbooks and known limits in `README.md`, `docs/LOCAL_OPENFOAM_NO_API_RUNBOOK.md`, `docs/EXTERNAL_AERO_V1_ROADMAP.md`, and `AGENTS.md`.
+
+**Remaining before wider release:**
+- Add CI wiring for the fast tests.
+- Keep real OpenFOAM smoke tests local/manual unless the CI runner has WSL/OpenFOAM or a Linux OpenFOAM image.
 
 **Keywords:** `CI`, `quality gates`, `release checklist`, `runbook`.

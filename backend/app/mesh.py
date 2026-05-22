@@ -4,9 +4,78 @@ import asyncio
 import shutil
 from pathlib import Path
 
+from app.openfoam.mesh_validation import read_msh_physical_names
+
+
+AIRFOIL_2D_PHYSICAL_NAMES_COPY = (
+    "airfoil, inlet, outlet, farfield, frontAndBack, and internal"
+)
+
 
 class MeshConversionError(RuntimeError):
     pass
+
+
+def conversion_unavailable_message(source_name: str, gmsh_command: str) -> str:
+    return (
+        f"Could not convert {source_name} to a Gmsh .msh file because '{gmsh_command}' "
+        "is not installed or not on PATH. STEP/STL conversion is best-effort in V1. "
+        "For the production workflow, upload a pre-meshed Gmsh .msh file with physical "
+        f"names: {AIRFOIL_2D_PHYSICAL_NAMES_COPY}."
+    )
+
+
+def conversion_failure_message(source_name: str, detail: str) -> str:
+    normalized = detail.lower()
+    hints: list[str] = []
+
+    if any(
+        phrase in normalized
+        for phrase in (
+            "no elements in volume",
+            "no tetrahedra",
+            "no volume",
+            "not a volume",
+            "3d mesh cannot be generated",
+            "invalid boundary mesh",
+        )
+    ):
+        hints.append(
+            "Gmsh did not create the required volume mesh; this usually means a "
+            "missing volume mesh, open surface, non-watertight STL, or geometry "
+            "that needs repair."
+        )
+    if "physical" in normalized:
+        hints.append(
+            f"The mesh must define Gmsh PhysicalNames: {AIRFOIL_2D_PHYSICAL_NAMES_COPY}."
+        )
+    hints.append(
+        "Use a cleaner closed STL/STEP, or upload a pre-meshed Gmsh .msh file."
+    )
+
+    cleaned_detail = " ".join(detail.split())
+    if cleaned_detail:
+        cleaned_detail = cleaned_detail[:1200]
+        return (
+            f"Could not convert {source_name} to a Gmsh .msh file. STEP/STL conversion "
+            f"is best-effort in V1. {' '.join(hints)} Gmsh output: {cleaned_detail}"
+        )
+    return (
+        f"Could not convert {source_name} to a Gmsh .msh file. STEP/STL conversion "
+        f"is best-effort in V1. {' '.join(hints)}"
+    )
+
+
+def validate_converted_mesh(output_path: Path, source_name: str) -> None:
+    physical_names = read_msh_physical_names(output_path)
+    if physical_names:
+        return
+    raise MeshConversionError(
+        f"Converted {source_name} to .msh, but the result has no Gmsh PhysicalNames. "
+        "V1 needs named patches before it can build a reliable OpenFOAM case. Define "
+        f"physical names: {AIRFOIL_2D_PHYSICAL_NAMES_COPY}, or upload a pre-meshed "
+        "Gmsh .msh file."
+    )
 
 
 async def convert_to_gmsh_mesh(
@@ -14,11 +83,7 @@ async def convert_to_gmsh_mesh(
 ) -> Path:
     gmsh = shutil.which(gmsh_command)
     if not gmsh:
-        raise MeshConversionError(
-            f"Could not convert {source_path.name} to a Gmsh .msh file because '{gmsh_command}' "
-            "is not installed or not on PATH. Upload a cleaner STL/STEP with Gmsh available, or "
-            "upload a pre-meshed .msh file."
-        )
+        raise MeshConversionError(conversion_unavailable_message(source_path.name, gmsh_command))
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     process = await asyncio.create_subprocess_exec(
@@ -33,9 +98,8 @@ async def convert_to_gmsh_mesh(
         stderr=asyncio.subprocess.PIPE,
     )
     stdout, stderr = await process.communicate()
-    if process.returncode != 0 or not output_path.exists():
+    if process.returncode != 0 or not output_path.exists() or output_path.stat().st_size == 0:
         detail = (stderr or stdout).decode(errors="replace").strip()
-        raise MeshConversionError(
-            f"Could not convert {source_path.name} to a Gmsh .msh file. {detail}"
-        )
+        raise MeshConversionError(conversion_failure_message(source_path.name, detail))
+    validate_converted_mesh(output_path, source_path.name)
     return output_path

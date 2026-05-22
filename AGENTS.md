@@ -61,7 +61,7 @@ The NACA 4412 validation path is now implemented for local OpenFOAM mode:
 - Boundary conditions are airfoil-specific: no-slip/wall functions on `airfoil`, `empty` on `frontAndBack`, fixed freestream velocity at `inlet`, pressure outlet behavior at `outlet`, and slip/zero-gradient behavior at `farfield`.
 - Run metadata records `chord_length_m=1.0`, `kinematic_viscosity_m2_s=1.5e-5`, `reynolds_number=1666666.666667`, parsed `checkMesh` summary, and final OpenFOAM-generated `Cl/Cd/Cm` when available.
 - Airfoil cases enable OpenFOAM `forceCoeffs` on the `airfoil` patch.
-- The latest real local run used `25 m/s`, `2 deg` angle of attack, `1 m` chord, and reached `completed` as run `ba226737-d4d3-4c5a-836c-23d14bdb2968`.
+- The latest real local run used `25 m/s`, `2 deg` angle of attack, `1 m` chord, and reached `completed` as run `d52632a4-4b1f-4a74-8d3c-d7f4729a20fc`.
 - OpenFOAM `checkMesh` passed with `57,292` cells.
 - Final OpenFOAM-derived coefficients from that run: `Cl=0.4591685`, `Cd=0.02907224`, `Cm=0.09620507`.
 - Required artifacts include: `mesh-validation.json`, `checkMesh.log`, `solver.log`, `residuals.csv`, `forceCoeffs.dat`, `forceCoeffs.csv`, `force-coefficients.png`, VTK output, `openfoam-case.zip`, and `openfoam-report.html`.
@@ -112,10 +112,10 @@ A prior agent session implemented most of Phase 3 code and docs. Fake mode was p
 
 ### Verified in current session (2026-05-22)
 
-- `cd backend; ..\.venv\Scripts\python.exe -m pytest` -> **50 passed**
+- `cd backend; ..\.venv\Scripts\python.exe -m pytest` -> **76 passed**
 - `.\scripts\local-verify.ps1 -Scope backend` -> **PASS**
 - `.\scripts\release-check.ps1` -> **PASS**
-- `.\scripts\smoke-naca-openfoam.ps1 -ApiBaseUrl http://127.0.0.1:8012 -TimeoutSeconds 1200 -PollIntervalSeconds 5 -SkipPreflight` -> **PASS** (run `ba226737-d4d3-4c5a-836c-23d14bdb2968`)
+- `.\scripts\smoke-naca-openfoam.ps1 -ApiBaseUrl http://127.0.0.1:8012 -TimeoutSeconds 1200 -PollIntervalSeconds 5 -SkipPreflight` -> **PASS** (run `d52632a4-4b1f-4a74-8d3c-d7f4729a20fc`)
 - `.\scripts\smoke-bad-mesh-validation.ps1 -ApiBaseUrl http://127.0.0.1:8012` -> **PASS**
 - `npm --prefix frontend run build` -> **PASS**
 - `.\scripts\dev-foamagent.ps1 -CheckOnly` -> blocked before real acceptance because Docker Desktop daemon is not running
@@ -176,6 +176,7 @@ Start with these files:
 - `docs/EXTERNAL_AERO_V1_ROADMAP.md`: active roadmap and acceptance gates from the current prototype to usable external-aero V1.
 - `docs/PHASE_3_REAL_FOAMAGENT_OPENFOAM_PLAN.md`: next milestone plan, now rewritten around local OpenFOAM without API keys.
 - `docs/LOCAL_OPENFOAM_NO_API_RUNBOOK.md`: no-API local OpenFOAM target runbook.
+- `docs/GMSH_AIRFOIL_2D_TEMPLATE.md`: required Gmsh physical names and mesh contract for production `.msh` uploads.
 - `docs/REAL_MODE_RUNBOOK.md`: optional Foam-Agent/MCP startup, health checks, troubleshooting.
 
 ## Verification Commands
@@ -221,7 +222,7 @@ Optional Foam-Agent/MCP mode (requires Docker + `.env` API key):
 The latest verified baseline passed:
 
 - Python/backend prerequisite check, including Gmsh 4.13.1.
-- Backend pytest suite: **73 tests** (includes MCP, preflight, mirroring, local OpenFOAM, mesh validation, and force coefficients).
+- Backend pytest suite: **76 tests** (includes MCP, preflight, mirroring, local OpenFOAM, mesh conversion, mesh validation, and force coefficients).
 - Frontend Vitest suite: 6 tests.
 - Fake-mode backend smoke flow (`local-verify.ps1 -Scope backend`).
 - Playwright browser E2E workflow (via full `release-check.ps1`).
@@ -256,10 +257,9 @@ Phase 3 implemented steps:
 Phase 3 sample acceptance is complete on this machine. Remaining hardening steps:
 
 1. Run fresh real NACA and bad-mesh smoke validation after solver-path changes.
-2. Improve STEP/STL mesh-prep error messages and keep `.msh` as the first-class input.
-3. Add user-facing Gmsh physical-name examples/templates.
-4. Add richer visualization after VTK/log artifacts are reliable.
-5. Keep `.\scripts\release-check.ps1` passing after every follow-up change.
+2. Test real user-provided `.msh` files against `docs/GMSH_AIRFOIL_2D_TEMPLATE.md`.
+3. Add richer visualization after VTK/log artifacts are reliable.
+4. Keep `.\scripts\release-check.ps1` passing after every follow-up change.
 
 Keep the API and UI stable unless the real run proves they need to change.
 
@@ -271,6 +271,7 @@ Watch these areas:
 - Windows path handling can break WSL command execution; keep app paths and WSL-visible paths separate.
 - Boundary names from `.msh` imports may not match deterministic template assumptions.
 - STEP/STL meshing is best-effort; `.msh` should remain the reliable V1 input.
+- STEP/STL conversions without Gmsh `PhysicalNames` now fail before solver execution; do not hide that behind fake patch inference.
 - Long-running CFD jobs need cancellation and timeout behavior to avoid stuck UI state.
 - Browser E2E failures can be caused by stale dev servers on ports `8000` or `5173`; check listeners before debugging app code.
 

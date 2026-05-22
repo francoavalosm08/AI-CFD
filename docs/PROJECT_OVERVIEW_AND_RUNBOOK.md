@@ -103,6 +103,7 @@ Main files:
 
 - `backend/app/mesh.py`
   - Gmsh conversion helper for STEP/STL to `.msh`
+  - clear conversion failure messages for missing Gmsh, missing volume meshes, missing physical names, and bad geometry
 
 - `backend/app/prompt.py`
   - deterministic Foam-Agent prompt builder
@@ -628,7 +629,8 @@ Mitigation:
 
 - Use fake mode for UI/backend development unless actively testing real OpenFOAM.
 - Use `.msh` for the most reliable workflow.
-- Use STEP/STL only when Gmsh is available and geometry is clean enough to mesh.
+- Use STEP/STL only when Gmsh is available and geometry is clean enough to create a named volume mesh.
+- For production V1 airfoil meshes, follow `docs/GMSH_AIRFOIL_2D_TEMPLATE.md`.
 - Planned local OpenFOAM runs should not require an API key.
 - Optional Foam-Agent/OpenFOAM runs require Docker Desktop and a valid model API key.
 - Do not commit `.env`, `data/`, `.local-data/`, `node_modules/`, or build outputs.
@@ -657,7 +659,7 @@ Result:
 
 ### Phase 3: Local OpenFOAM Real Solver Integration
 
-Sample acceptance complete; hardening in progress. The plan has pivoted away from required Foam-Agent/API-key execution.
+V1 candidate complete for the current local NACA/OpenFOAM validation path. The plan has pivoted away from required Foam-Agent/API-key execution.
 
 Goal:
 
@@ -673,22 +675,24 @@ Implemented:
 - keep optional MCP mode passing but off the primary path
 - install/source OpenFOAM 10 in WSL `Ubuntu-22.04`
 - complete the first real `.msh` local OpenFOAM smoke using `samples/external_box.geo`
+- complete NACA 4412 airfoil validation with `checkMesh`, pressure/velocity/residual/force coefficient artifacts, and OpenFOAM-derived `Cl/Cd/Cm`
+- add production `.msh` physical-name guidance in `docs/GMSH_AIRFOIL_2D_TEMPLATE.md`
+- improve STEP/STL mesh-prep error handling while keeping `.msh` as the first-class path
 
 Remaining:
 
-- improve STEP/STL mesh-prep error handling
-- add user-facing `.msh` physical-name examples/templates
+- test more real user-provided `.msh` files against the documented physical-name contract
 - add richer browser visualization after VTK/log artifacts are stable
 
 ### Phase 4: Runtime Reproducibility
 
 Goal:
 
-- standardized WSL/OpenFOAM setup checks and optional Docker/Compose parity once local real mode is stable.
+- standardized WSL/OpenFOAM setup checks, Windows Gmsh visibility checks, and optional Docker/Compose parity once local real mode is stable.
 
 ### Phase 5: Release Readiness
 
 Goal:
 
-- CI, release checklist, operational runbook, known-limits documentation.
+- CI, release checklist, operational runbook, known-limits documentation. Local quality gates already exist through `release-check.ps1`, NACA smoke, and bad-mesh smoke.
 

@@ -73,20 +73,17 @@ The local HTML report includes force coefficient links and final coefficient val
 
 ## Phase 3D: `.msh` Production Workflow Hardening
 
-Status: partially implemented.
+Status: implemented for V1.
 
 Implemented:
 
-- Frontend copy says `.msh` is the reliable V1 path.
+- Frontend copy says premeshed `.msh` is the supported V1 path.
 - Frontend names the expected `airfoil_2d` physical names.
 - Backend records explicit mesh validation output.
 - Bad patch sets fail with an actionable message.
-
-Remaining:
-
-- Add a sample `.geo` template document for user-provided 2D airfoil meshes.
-- Improve STEP/STL conversion failures so they distinguish surface-only meshes, missing physical names, and bad geometry.
-- Add a short UI link or inline help panel for expected Gmsh physical names.
+- `docs/GMSH_AIRFOIL_2D_TEMPLATE.md` documents the required physical names and a known-good generation path.
+- STEP/STL conversion failures distinguish missing Gmsh, missing volume mesh, missing physical names, and general geometry failures.
+- Converted STEP/STL/CAD meshes without Gmsh `PhysicalNames` fail before the solver with an explicit premeshed `.msh` recommendation.
 
 ## Phase 3E: Visualization Upgrade Path
 
@@ -103,7 +100,7 @@ Do not block V1 on interactive 3D. Add vtk.js or PyVista/ParaView-style viewing 
 
 ## Phase 4: Local Reproducibility
 
-Status: scripts added; run the real acceptance scripts after each solver-path change.
+Status: implemented for the current Windows/WSL target.
 
 Commands:
 
@@ -128,9 +125,11 @@ The NACA smoke regenerates the validation mesh and enforces:
 
 The bad-mesh smoke enforces clean failure before solver execution.
 
+`dev-openfoam-wsl.ps1 -CheckOnly` also reports whether Windows `gmsh` is available, because NACA generation and STEP/STL conversion use the Windows Gmsh executable while OpenFOAM itself runs inside WSL.
+
 ## Phase 5: Usable Local V1 Release
 
-Status: close, pending fresh full verification and real NACA acceptance after each solver-path change.
+Status: usable local V1 candidate; rerun all gates after each solver-path change.
 
 Release quality gates:
 

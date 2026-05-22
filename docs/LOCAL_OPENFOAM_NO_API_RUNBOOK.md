@@ -86,6 +86,8 @@ The NACA generator creates `naca4412.geo`, `naca4412.stl`, and a Gmsh 2.2 `.msh`
 
 The backend validates that patch set before `gmshToFoam`, records the result in `mesh-validation.json`, and treats it as a 2D airfoil case. It sets `frontAndBack` to `empty`, sets the imported `airfoil` patch type to `wall`, applies no-slip/wall-compatible turbulence fields on the airfoil, enables OpenFOAM `forceCoeffs` on the `airfoil` patch, and records chord, kinematic viscosity, Reynolds number, mesh cell count, `checkMesh` summary, and final `Cl/Cd/Cm` when available.
 
+For user-created meshes, follow `docs/GMSH_AIRFOIL_2D_TEMPLATE.md`. A production V1 `.msh` should be a Gmsh 2.2 ASCII volume mesh with physical names `airfoil`, `inlet`, `outlet`, `farfield`, `frontAndBack`, and `internal`.
+
 None of these should require `.env` or `OPENAI_API_KEY`.
 
 ## What Must Be Installed
@@ -98,6 +100,7 @@ Required runtime tools:
 - Ubuntu distro
 - OpenFOAM installed inside Ubuntu
 - OpenFOAM environment sourceable from bash
+- Windows `gmsh` on PATH for NACA generation and STEP/STL conversion
 - `gmshToFoam`
 - `checkMesh`
 - `simpleFoam`
@@ -160,6 +163,8 @@ The repo currently has:
 - pre-run `.msh` physical-name validation for the `airfoil_2d` template
 - OpenFOAM `forceCoeffs` setup for `airfoil_2d` and final coefficient parsing
 - force coefficient CSV/PNG/report/dashboard outputs
+- production `.msh` guidance in `docs/GMSH_AIRFOIL_2D_TEMPLATE.md`
+- clearer STEP/STL conversion failures for missing Gmsh, missing volume meshes, missing physical names, and geometry failures
 
 Latest NACA 4412 validation result on this machine:
 
@@ -174,9 +179,8 @@ Latest NACA 4412 validation result on this machine:
 Next implementation work:
 
 1. Run fresh real NACA and bad-mesh smoke validation after each solver-path change.
-2. Improve STEP/STL mesh-prep failures while keeping `.msh` the most reliable first-class input.
-3. Add user-facing `.geo`/Gmsh physical-name examples for production `.msh` uploads.
-4. Replace the lightweight point-preview renderer with PyVista/vtk.js contours when richer visualization is needed.
+2. Test more user-provided `.msh` files against the documented physical-name contract.
+3. Replace the lightweight point-preview renderer with PyVista/vtk.js contours when richer visualization is needed.
 
 ## Troubleshooting Targets
 
@@ -186,5 +190,6 @@ Next implementation work:
 | OpenFOAM command missing | OpenFOAM not installed or bashrc not sourced | Preflight reports missing command |
 | Path with spaces fails | Windows-to-WSL quoting issue | Unit-tested path adapter |
 | `checkMesh` fails | Mesh invalid or boundary mismatch | Run fails with `checkMesh.log` artifact |
+| STEP/STL conversion fails before OpenFOAM | Missing Gmsh, missing volume mesh, or missing physical names | Error recommends a cleaner closed STL/STEP or premeshed `.msh` |
 | Solver diverges | Bad case defaults or mesh quality | Run fails with `solver.log` and zipped case |
 | No visualization | `foamToVTK` or PyVista missing | Still return logs/case zip; PNGs are optional |

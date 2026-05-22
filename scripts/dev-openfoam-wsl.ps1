@@ -41,6 +41,17 @@ if ($matchingDistro.Count -eq 0) {
 }
 Write-Host "[ok] WSL distro '$Distro' found."
 
+$windowsGmsh = Get-Command "gmsh" -ErrorAction SilentlyContinue
+if ($windowsGmsh) {
+    $gmshVersion = (& gmsh -version 2>$null | Select-Object -First 1)
+    if ([string]::IsNullOrWhiteSpace($gmshVersion)) {
+        $gmshVersion = $windowsGmsh.Source
+    }
+    Write-Host "[ok] Windows Gmsh found: $gmshVersion"
+} else {
+    Write-Warning "Windows Gmsh was not found on PATH. Existing premeshed .msh uploads can still run, but NACA generation and STEP/STL conversion need Gmsh."
+}
+
 $requiredCommands = @("gmshToFoam", "checkMesh", "simpleFoam")
 $optionalCommands = @("foamToVTK")
 $requiredCheck = (($requiredCommands + $optionalCommands) | ForEach-Object { "command -v $_" }) -join " && "

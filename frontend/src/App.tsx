@@ -161,7 +161,7 @@ export default function App({ initialRunId }: AppProps = {}) {
             <FileUp size={28} />
           </div>
           <h2>Drop STEP, STL, Gmsh mesh, or OpenFOAM ZIP</h2>
-          <p>.msh is the most reliable path for V1. STEP/STL conversion uses Gmsh when available.</p>
+          <p>Premeshed .msh is the supported V1 path. STEP/STL import is best-effort and requires clean geometry plus Gmsh.</p>
           <p className="mesh-copy">
             Production Gmsh MSH files should define physical names: airfoil, inlet, outlet, farfield, frontAndBack, and internal.
           </p>

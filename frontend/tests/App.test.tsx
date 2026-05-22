@@ -11,6 +11,8 @@ describe("App", () => {
 
     expect(screen.getByRole("heading", { name: "AI CFD Workbench" })).toBeInTheDocument();
     expect(screen.getByText("Drop STEP, STL, Gmsh mesh, or OpenFOAM ZIP")).toBeInTheDocument();
+    expect(screen.getByText(/STEP\/STL import is best-effort/i)).toBeInTheDocument();
+    expect(screen.getByText(/airfoil, inlet, outlet, farfield, frontAndBack, and internal/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Velocity/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Start CFD run/i })).toBeDisabled();
     expect(screen.getByText(/Runner:/i)).toBeInTheDocument();

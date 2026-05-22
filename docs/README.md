@@ -8,12 +8,13 @@ Read these docs in this order when picking up the project.
 4. `EXTERNAL_AERO_V1_ROADMAP.md` - active roadmap from the current prototype to usable external-aero V1.
 5. `PHASE_3_REAL_FOAMAGENT_OPENFOAM_PLAN.md` - detailed Phase 3 plan, now focused on local OpenFOAM without runtime API keys.
 6. `LOCAL_OPENFOAM_NO_API_RUNBOOK.md` - no-API local OpenFOAM workflow and troubleshooting.
-7. `REAL_MODE_RUNBOOK.md` - optional Foam-Agent/MCP startup, health checks, and troubleshooting.
-8. `PHASE_2_PLANNING_DRAFT.md` - earlier planning details and risk analysis.
+7. `GMSH_AIRFOIL_2D_TEMPLATE.md` - required Gmsh physical names and mesh contract for production `.msh` uploads.
+8. `REAL_MODE_RUNBOOK.md` - optional Foam-Agent/MCP startup, health checks, and troubleshooting.
+9. `PHASE_2_PLANNING_DRAFT.md` - earlier planning details and risk analysis.
 
 ## Current Product Direction
 
-Keep V1 focused on external aerodynamics. The app already has upload, spec capture, fake-mode execution, local OpenFOAM dry-run/case generation, live run events, artifacts, dashboard viewing, WSL/OpenFOAM preflight, NACA 4412 validation, mesh physical-name validation, and OpenFOAM-derived force coefficient artifacts. The next milestone is finishing `.msh` production workflow hardening for user-provided aircraft/vehicle meshes. Foam-Agent/MCP remains optional.
+Keep V1 focused on external aerodynamics. The app already has upload, spec capture, fake-mode execution, local OpenFOAM dry-run/case generation, live run events, artifacts, dashboard viewing, WSL/OpenFOAM preflight, NACA 4412 validation, mesh physical-name validation, OpenFOAM-derived force coefficient artifacts, production `.msh` guidance, and clearer STEP/STL conversion failures. The next milestone is running the full release and real-solver gates after each solver-path change, then improving visualization fidelity after the static V1 outputs stay stable. Foam-Agent/MCP remains optional.
 
 ## Verification Before Handoff
 
