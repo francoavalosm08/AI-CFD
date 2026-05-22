@@ -99,7 +99,7 @@ def test_focused_point_window_crops_wide_external_domain_toward_center() -> None
     bounds = _focused_point_window(points, focus_points=focus_points)
 
     min_x, max_x, min_y, max_y = bounds
-    assert round(max_x - min_x, 2) == 5.07
-    assert round(max_y - min_y, 2) == 2.53
+    assert round(max_x - min_x, 2) == 4.22
+    assert round(max_y - min_y, 2) == 2.11
     assert round((min_x + max_x) / 2, 2) == 0.5
     assert round((min_y + max_y) / 2, 2) == 0.05

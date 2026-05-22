@@ -241,8 +241,8 @@ def _focused_point_window(
         if center_source
         else (min_y + max_y) / 2
     )
-    width = span_x * 0.38 / 1.2
-    height = span_y * 0.38 / 1.2
+    width = span_x * 0.38 / 1.44
+    height = span_y * 0.38 / 1.44
     return (
         max(min_x, center_x - width / 2),
         min(max_x, center_x + width / 2),
