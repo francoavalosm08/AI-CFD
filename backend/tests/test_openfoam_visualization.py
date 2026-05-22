@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from app.openfoam.visualization import write_visualization_previews
+from app.openfoam.visualization import _focused_point_window, write_visualization_previews
 
 
 def _png_size(path: Path) -> tuple[int, int]:
@@ -90,3 +90,15 @@ def test_write_visualization_previews_reads_openfoam_field_attribute_vtk(tmp_pat
 
     assert tmp_path / "velocity-magnitude.png" in previews
     assert tmp_path / "pressure.png" in previews
+
+
+def test_focused_point_window_crops_wide_external_domain_toward_center() -> None:
+    points = [(-6, -4), (10, -4), (10, 4), (-6, 4), (0, 0), (1, 0.1)]
+
+    bounds = _focused_point_window(points)
+
+    min_x, max_x, min_y, max_y = bounds
+    assert round(max_x - min_x, 2) == 6.08
+    assert round(max_y - min_y, 2) == 3.04
+    assert min_x < 0 < max_x
+    assert min_y < 0 < max_y

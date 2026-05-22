@@ -182,10 +182,11 @@ def _write_point_plot(path: Path, points: list[tuple[float, float]], values: lis
     if not points or not values:
         _write_png(path, image)
         return
-    min_x, max_x = min(x for x, _ in points), max(x for x, _ in points)
-    min_y, max_y = min(y for _, y in points), max(y for _, y in points)
+    min_x, max_x, min_y, max_y = _focused_point_window(points)
     min_value, max_value = min(values), max(values)
     for (x, y), value in zip(points, values):
+        if not (min_x <= x <= max_x and min_y <= y <= max_y):
+            continue
         px = _scale(x, min_x, max_x, MARGIN, WIDTH - MARGIN)
         py = _scale(y, min_y, max_y, HEIGHT - MARGIN, MARGIN)
         _draw_disc(image, int(px), int(py), 2, _color_ramp(value, min_value, max_value))
@@ -193,6 +194,27 @@ def _write_point_plot(path: Path, points: list[tuple[float, float]], values: lis
     _draw_text(image, MARGIN, 26, title, (15, 23, 42))
     _draw_text(image, WIDTH - 210, HEIGHT - 18, f"min {min_value:.4g}  max {max_value:.4g}", (71, 85, 105))
     _write_png(path, image)
+
+
+def _focused_point_window(points: list[tuple[float, float]]) -> tuple[float, float, float, float]:
+    min_x, max_x = min(x for x, _ in points), max(x for x, _ in points)
+    min_y, max_y = min(y for _, y in points), max(y for _, y in points)
+    span_x = max_x - min_x
+    span_y = max_y - min_y
+    if span_x <= 0 or span_y <= 0:
+        return min_x, max_x, min_y, max_y
+    if span_x < 8 or span_y < 4:
+        return min_x, max_x, min_y, max_y
+    center_x = (min_x + max_x) / 2
+    center_y = (min_y + max_y) / 2
+    width = span_x * 0.38
+    height = span_y * 0.38
+    return (
+        max(min_x, center_x - width / 2),
+        min(max_x, center_x + width / 2),
+        max(min_y, center_y - height / 2),
+        min(max_y, center_y + height / 2),
+    )
 
 
 def _canvas() -> list[bytearray]:
