@@ -7,7 +7,7 @@ Automating CFD with a local browser app for external-aerodynamics runs through O
 - Upload `.msh`, `.stl`, `.step`, `.stp`, or `.zip` files.
 - Ask for external-aero specifications: velocity, angle of attack, units, scale, mesh quality, and runtime.
 - Build a deterministic simulation spec and run fake mode or the local OpenFOAM case-generation path.
-- Show an HTML dashboard with status, run logs, static OpenFOAM-derived images, residual/coefficient plots, summary metrics, and downloads.
+- Show an HTML dashboard with status, run logs, inspectable OpenFOAM-derived images, residual/coefficient plots, summary metrics, and downloads.
 
 ## Project Handoff And Docs
 

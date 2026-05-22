@@ -14,7 +14,7 @@ Read these docs in this order when picking up the project.
 
 ## Current Product Direction
 
-Keep V1 focused on external aerodynamics. The app already has upload, spec capture, fake-mode execution, local OpenFOAM dry-run/case generation, live run events, artifacts, dashboard viewing, WSL/OpenFOAM preflight, NACA 4412 validation, mesh physical-name validation, OpenFOAM-derived force coefficient artifacts, production `.msh` guidance, and clearer STEP/STL conversion failures. The next milestone is running the full release and real-solver gates after each solver-path change, then improving visualization fidelity after the static V1 outputs stay stable. Foam-Agent/MCP remains optional.
+Keep V1 focused on external aerodynamics. The app already has upload, spec capture, fake-mode execution, local OpenFOAM dry-run/case generation, live run events, artifacts, dashboard viewing, WSL/OpenFOAM preflight, NACA 4412 validation, mesh physical-name validation, OpenFOAM-derived force coefficient artifacts, production `.msh` guidance, clearer STEP/STL conversion failures, and browser inspection for generated PNG previews. The next milestone is running the full release and real-solver gates after each solver-path change, then testing more real user `.msh` cases before adding heavier vtk.js/PyVista-style interactivity. Foam-Agent/MCP remains optional.
 
 ## Verification Before Handoff
 

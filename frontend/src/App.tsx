@@ -1,4 +1,5 @@
 ﻿import { Activity, Box, FileUp, Gauge, Play, RotateCcw, Square, Wind } from "lucide-react";
+import { ExternalLink, X, ZoomIn } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 
 import {
@@ -41,6 +42,7 @@ export default function App({ initialRunId }: AppProps = {}) {
   const [health, setHealth] = useState<HealthResponse | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedImageId, setSelectedImageId] = useState<string | null>(null);
 
   const images = useMemo(() => artifacts.filter((artifact) => artifact.type === "image"), [artifacts]);
   const logs = useMemo(() => artifacts.filter((artifact) => artifact.type === "log"), [artifacts]);
@@ -49,6 +51,10 @@ export default function App({ initialRunId }: AppProps = {}) {
     [artifacts]
   );
   const runnerMode = health?.runner_mode ?? health?.foam_agent_mode;
+  const selectedImage = useMemo(
+    () => images.find((artifact) => artifact.id === selectedImageId) ?? null,
+    [images, selectedImageId]
+  );
 
   useEffect(() => {
     void fetchHealth()
@@ -62,6 +68,12 @@ export default function App({ initialRunId }: AppProps = {}) {
       setError(err instanceof Error ? err.message : "Could not load the run");
     });
   }, [initialRunId]);
+
+  useEffect(() => {
+    if (selectedImageId && !selectedImage) {
+      setSelectedImageId(null);
+    }
+  }, [selectedImage, selectedImageId]);
 
   const summaryMetrics = useMemo(() => buildSummaryMetrics(run), [run]);
 
@@ -333,7 +345,13 @@ export default function App({ initialRunId }: AppProps = {}) {
               {images.map((artifact) => (
                 <figure key={artifact.id}>
                   <img src={artifactUrl(artifact.id)} alt={artifact.display_name} />
-                  <figcaption>{artifact.display_name}</figcaption>
+                  <figcaption>
+                    <span>{artifact.display_name}</span>
+                    <button type="button" onClick={() => setSelectedImageId(artifact.id)} aria-label={`Inspect ${artifact.display_name}`}>
+                      <ZoomIn size={15} />
+                      Inspect
+                    </button>
+                  </figcaption>
                 </figure>
               ))}
             </div>
@@ -368,6 +386,26 @@ export default function App({ initialRunId }: AppProps = {}) {
           </div>
         </div>
       </section>
+
+      {selectedImage && (
+        <div className="image-modal" role="dialog" aria-modal="true" aria-label={`${selectedImage.display_name} preview`}>
+          <div className="image-modal-header">
+            <h2>{selectedImage.display_name}</h2>
+            <div>
+              <a href={artifactUrl(selectedImage.id)} target="_blank" rel="noreferrer">
+                <ExternalLink size={16} />
+                Open image
+              </a>
+              <button type="button" onClick={() => setSelectedImageId(null)} aria-label="Close visual preview">
+                <X size={18} />
+              </button>
+            </div>
+          </div>
+          <div className="image-modal-body">
+            <img src={artifactUrl(selectedImage.id)} alt={`${selectedImage.display_name} enlarged preview`} />
+          </div>
+        </div>
+      )}
     </main>
   );
 }

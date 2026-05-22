@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom/vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import App from "../src/App";
@@ -73,4 +73,85 @@ describe("App", () => {
 
     vi.unstubAllGlobals();
   });
+
+  it("opens solver image artifacts in a larger preview dialog", async () => {
+    const run = completedRun();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (url === "/api/health") {
+          return Response.json({ status: "ok", runner_mode: "local_openfoam" });
+        }
+        if (url === "/api/runs/run-visuals") {
+          return Response.json(run);
+        }
+        if (url === "/api/runs/run-visuals/artifacts") {
+          return Response.json({
+            artifacts: [
+              {
+                id: "artifact-pressure",
+                run_id: "run-visuals",
+                type: "image",
+                path: "pressure.png",
+                display_name: "pressure.png",
+                mime_type: "image/png",
+                created_at: "2026-05-22T00:00:00Z"
+              },
+              {
+                id: "artifact-log",
+                run_id: "run-visuals",
+                type: "log",
+                path: "solver.log",
+                display_name: "solver.log",
+                mime_type: "text/plain",
+                created_at: "2026-05-22T00:00:00Z"
+              }
+            ]
+          });
+        }
+        return Response.json({}, { status: 404 });
+      })
+    );
+
+    render(<App initialRunId="run-visuals" />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Inspect pressure.png" }));
+
+    expect(screen.getByRole("dialog", { name: "pressure.png preview" })).toBeInTheDocument();
+    expect(screen.getByAltText("pressure.png enlarged preview")).toHaveAttribute("src", "/api/artifacts/artifact-pressure");
+    expect(screen.getByRole("link", { name: /Open image/i })).toHaveAttribute("href", "/api/artifacts/artifact-pressure");
+
+    fireEvent.click(screen.getByRole("button", { name: "Close visual preview" }));
+
+    expect(screen.queryByRole("dialog", { name: "pressure.png preview" })).not.toBeInTheDocument();
+
+    vi.unstubAllGlobals();
+  });
 });
+
+
+function completedRun(): RunRecord {
+  return {
+    id: "run-visuals",
+    upload_id: "upload-1",
+    status: "completed",
+    spec: {
+      upload_id: "upload-1",
+      units: "m",
+      length_scale: 1,
+      velocity: 25,
+      mach: null,
+      angle_of_attack: 2,
+      fluid_preset: "air_15c",
+      turbulence_preset: "steady_rans_sst",
+      mesh_quality: "balanced",
+      requested_outputs: ["residuals", "pressure", "velocity", "forces"],
+      max_runtime_minutes: 60
+    },
+    created_at: "2026-05-22T00:00:00Z",
+    updated_at: "2026-05-22T00:00:00Z",
+    completed_at: "2026-05-22T00:00:00Z",
+    summary: {},
+    artifacts: []
+  };
+}

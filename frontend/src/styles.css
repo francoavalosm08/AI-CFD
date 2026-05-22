@@ -291,9 +291,24 @@ figure img {
 }
 
 figcaption {
+  align-items: center;
   color: #44535a;
+  display: flex;
   font-size: 13px;
+  gap: 10px;
+  justify-content: space-between;
   padding: 9px 10px;
+}
+
+figcaption span {
+  overflow-wrap: anywhere;
+}
+
+figcaption button {
+  border-radius: 7px;
+  flex: 0 0 auto;
+  min-height: 32px;
+  padding: 0 10px;
 }
 
 .event-list,
@@ -338,6 +353,76 @@ figcaption {
   padding: 12px 14px;
 }
 
+.image-modal {
+  background: #f7faf8;
+  border: 1px solid #c6d0cc;
+  border-radius: 8px;
+  box-shadow: 0 24px 80px rgba(18, 32, 30, 0.28);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  inset: 24px;
+  overflow: hidden;
+  position: fixed;
+  z-index: 10;
+}
+
+.image-modal-header {
+  align-items: center;
+  background: #ffffff;
+  border-bottom: 1px solid #d7ddd9;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  padding: 14px 16px;
+}
+
+.image-modal-header h2 {
+  overflow-wrap: anywhere;
+}
+
+.image-modal-header div {
+  align-items: center;
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
+}
+
+.image-modal-header a {
+  align-items: center;
+  border: 1px solid #c6d0cc;
+  border-radius: 7px;
+  color: #176b65;
+  display: inline-flex;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 12px;
+  text-decoration: none;
+}
+
+.image-modal-header button {
+  min-width: 40px;
+  padding: 0;
+}
+
+.image-modal-body {
+  align-items: center;
+  display: flex;
+  justify-content: center;
+  min-height: 0;
+  overflow: auto;
+  padding: 16px;
+}
+
+.image-modal-body img {
+  background: #eef3f0;
+  border: 1px solid #d7ddd9;
+  border-radius: 8px;
+  display: block;
+  max-height: 100%;
+  max-width: 100%;
+  object-fit: contain;
+}
+
 @media (max-width: 900px) {
   .app-shell {
     padding: 18px;
@@ -365,5 +450,14 @@ figcaption {
 
   .run-summary {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .image-modal {
+    inset: 10px;
+  }
+
+  .image-modal-header {
+    align-items: stretch;
+    display: grid;
   }
 }

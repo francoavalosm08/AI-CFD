@@ -73,9 +73,10 @@ This is a simplified roadmap for non-software stakeholders, while keeping the ke
 - User-facing production `.msh` mesh contract in `docs/GMSH_AIRFOIL_2D_TEMPLATE.md`.
 - Clearer STEP/STL conversion failures for missing Gmsh, missing volume meshes, missing physical names, and bad geometry.
 - WSL/OpenFOAM preflight now also reports Windows Gmsh availability for NACA generation and STEP/STL conversion.
+- Browser image inspection for OpenFOAM-generated PNG artifacts.
 
 **Remaining after the current V1 candidate:**
-- Upgrade the lightweight PNG previews to richer contour/interactivity when PyVista/vtk.js is introduced.
+- Upgrade from PNG inspection to richer contour/interactivity when PyVista/vtk.js is introduced.
 - Keep running fresh real NACA and bad-mesh smoke validation after solver-path changes.
 - Broaden user-mesh examples after real third-party `.msh` files are tested.
 

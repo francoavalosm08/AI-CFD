@@ -678,11 +678,12 @@ Implemented:
 - complete NACA 4412 airfoil validation with `checkMesh`, pressure/velocity/residual/force coefficient artifacts, and OpenFOAM-derived `Cl/Cd/Cm`
 - add production `.msh` physical-name guidance in `docs/GMSH_AIRFOIL_2D_TEMPLATE.md`
 - improve STEP/STL mesh-prep error handling while keeping `.msh` as the first-class path
+- add browser inspection for generated PNG artifacts
 
 Remaining:
 
 - test more real user-provided `.msh` files against the documented physical-name contract
-- add richer browser visualization after VTK/log artifacts are stable
+- add richer vtk.js/PyVista-style browser visualization after VTK/log artifacts are stable
 
 ### Phase 4: Runtime Reproducibility
 

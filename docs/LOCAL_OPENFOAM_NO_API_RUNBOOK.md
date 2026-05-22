@@ -165,6 +165,7 @@ The repo currently has:
 - force coefficient CSV/PNG/report/dashboard outputs
 - production `.msh` guidance in `docs/GMSH_AIRFOIL_2D_TEMPLATE.md`
 - clearer STEP/STL conversion failures for missing Gmsh, missing volume meshes, missing physical names, and geometry failures
+- browser image inspection for generated pressure, velocity, residual, and force coefficient PNGs
 
 Latest NACA 4412 validation result on this machine:
 
@@ -180,7 +181,7 @@ Next implementation work:
 
 1. Run fresh real NACA and bad-mesh smoke validation after each solver-path change.
 2. Test more user-provided `.msh` files against the documented physical-name contract.
-3. Replace the lightweight point-preview renderer with PyVista/vtk.js contours when richer visualization is needed.
+3. Replace the lightweight point-preview renderer and PNG inspection with PyVista/vtk.js contours when richer visualization is needed.
 
 ## Troubleshooting Targets
 

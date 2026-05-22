@@ -25,8 +25,9 @@ The first local OpenFOAM implementation and sample acceptance slice is now in th
 - NACA 4412 `airfoil_2d` validation passes with OpenFOAM-derived pressure, velocity, residual, and force coefficient artifacts.
 - Production `.msh` guidance is documented in `docs/GMSH_AIRFOIL_2D_TEMPLATE.md`.
 - STEP/STL conversion failures now point out missing Gmsh, missing volume meshes, missing physical names, and bad geometry.
+- The dashboard can inspect generated PNG artifacts in a larger browser preview dialog.
 
-Remaining work is broader real user mesh testing and richer visualization after static OpenFOAM-derived outputs stay stable.
+Remaining work is broader real user mesh testing and richer vtk.js/PyVista-style visualization after static OpenFOAM-derived outputs stay stable.
 
 The task checklist below is retained as historical implementation detail. The current source of truth is this status section, `docs/EXTERNAL_AERO_V1_ROADMAP.md`, `docs/LOCAL_OPENFOAM_NO_API_RUNBOOK.md`, and `AGENTS.md`.
 

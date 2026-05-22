@@ -87,7 +87,7 @@ Implemented:
 
 ## Phase 3E: Visualization Upgrade Path
 
-Status: static V1 visuals implemented; richer interactivity deferred.
+Status: static V1 visuals and image inspection implemented; richer VTK interactivity deferred.
 
 The V1 viewer intentionally uses lightweight static PNGs:
 
@@ -96,7 +96,9 @@ The V1 viewer intentionally uses lightweight static PNGs:
 - `residuals.png`
 - `force-coefficients.png`
 
-Do not block V1 on interactive 3D. Add vtk.js or PyVista/ParaView-style viewing only after the static OpenFOAM-derived outputs and metrics are stable.
+The browser dashboard now lets users inspect those PNG artifacts in a larger preview dialog and open the raw image artifact directly.
+
+Do not block V1 on interactive 3D. Add vtk.js or PyVista/ParaView-style viewing only after more real user `.msh` cases have been tested against the static OpenFOAM-derived outputs and metrics.
 
 ## Phase 4: Local Reproducibility
 

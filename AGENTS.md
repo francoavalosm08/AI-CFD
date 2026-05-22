@@ -70,6 +70,7 @@ The NACA 4412 validation path is now implemented for local OpenFOAM mode:
   - `velocity-magnitude.png` from ASCII VTK point data
   - `pressure.png` from ASCII VTK point data
   - `force-coefficients.png` from OpenFOAM `forceCoeffs.csv`
+- The dashboard can open generated PNG artifacts in a larger browser preview dialog and still links to the raw image artifact.
 - The OpenFOAM runner exports VTK with `foamToVTK -ascii`; binary VTK is skipped by the lightweight parser instead of blocking a run.
 
 Do not accept future NACA validation runs as successful if `checkMesh` fails, OpenFOAM reports fewer than `40,000` cells, or `forceCoeffs.dat` / `forceCoeffs.csv` / `force-coefficients.png` / final `Cl/Cd/Cm` are missing.
@@ -223,7 +224,7 @@ The latest verified baseline passed:
 
 - Python/backend prerequisite check, including Gmsh 4.13.1.
 - Backend pytest suite: **76 tests** (includes MCP, preflight, mirroring, local OpenFOAM, mesh conversion, mesh validation, and force coefficients).
-- Frontend Vitest suite: 6 tests.
+- Frontend Vitest suite: 7 tests.
 - Fake-mode backend smoke flow (`local-verify.ps1 -Scope backend`).
 - Playwright browser E2E workflow (via full `release-check.ps1`).
 - Local OpenFOAM dry-run smoke flow (via full `release-check.ps1`).
@@ -258,7 +259,7 @@ Phase 3 sample acceptance is complete on this machine. Remaining hardening steps
 
 1. Run fresh real NACA and bad-mesh smoke validation after solver-path changes.
 2. Test real user-provided `.msh` files against `docs/GMSH_AIRFOIL_2D_TEMPLATE.md`.
-3. Add richer visualization after VTK/log artifacts are reliable.
+3. Add richer vtk.js/PyVista-style visualization after more real user `.msh` cases prove the static outputs reliable.
 4. Keep `.\scripts\release-check.ps1` passing after every follow-up change.
 
 Keep the API and UI stable unless the real run proves they need to change.

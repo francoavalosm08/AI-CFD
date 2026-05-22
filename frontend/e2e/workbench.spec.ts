@@ -18,6 +18,9 @@ test('runs fake-mode external-aero workflow from upload to dashboard artifacts',
 
   await expect(page.getByText('Completed').first()).toBeVisible();
   await expect(page.getByText('pressure.png')).toBeVisible();
+  await page.getByRole('button', { name: 'Inspect pressure.png' }).click();
+  await expect(page.getByRole('dialog', { name: 'pressure.png preview' })).toBeVisible();
+  await page.getByRole('button', { name: 'Close visual preview' }).click();
   await expect(page.getByText('solver.log')).toBeVisible();
   await expect(page.getByText(/Fake OpenFOAM solver completed/i)).toBeVisible();
 });
