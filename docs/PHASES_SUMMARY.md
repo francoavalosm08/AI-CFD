@@ -55,17 +55,19 @@ This is a simplified roadmap for non-software stakeholders, while keeping the ke
 - OpenFOAM command manifest and dry-run mode.
 - Log/residual/artifact parsing.
 - Automatic local HTML report generation from OpenFOAM run files.
+- Automatic PNG visual previews from OpenFOAM outputs: residual plot, velocity magnitude preview, and pressure preview.
 - No-API dry-run smoke script.
 - OpenFOAM 10 installed and sourceable in WSL `Ubuntu-22.04`.
 - Committed sample geometry source: `samples/external_box.geo`.
 - First real WSL/OpenFOAM smoke reached `completed` using a `.msh` generated from that sample.
 - NACA 4412 validation generator for `.geo`, `.stl`, and `.msh` files.
 - 2D airfoil OpenFOAM patch handling for `airfoil`, `inlet`, `outlet`, `farfield`, and `frontAndBack`.
-- Real NACA 4412 WSL/OpenFOAM validation reached `completed` at `25 m/s`, `2 deg`, `1 m` chord, `Re=1.666666e6`; `checkMesh` passed with `57,292` cells.
+- Real NACA 4412 WSL/OpenFOAM validation reached `completed` at `25 m/s`, `2 deg`, `1 m` chord, `Re=1.666666e6`; `checkMesh` passed with `57,292` cells and generated residual, velocity, and pressure PNG previews.
 - WSL-native staging under `/tmp/ai-cfd-workbench/<run_id>/case` for real runs, with copy-back to the Windows run directory.
 
 **Still required for user-mesh hardening:**
-- Add force coefficient setup and richer visualization based on the validated airfoil patch model.
+- Add force coefficient setup based on the validated airfoil patch model.
+- Upgrade the lightweight PNG previews to richer contour/interactivity when PyVista/vtk.js is introduced.
 - Validate uploaded `.msh` boundary patches before solver execution.
 - Improve STEP/STL mesh-prep failure handling while keeping `.msh` first-class.
 

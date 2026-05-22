@@ -62,6 +62,11 @@ The NACA 4412 validation path is now implemented for local OpenFOAM mode:
 - The latest real local run used `25 m/s`, `2 deg` angle of attack, `1 m` chord, and reached `completed`.
 - OpenFOAM `checkMesh` passed with `57,292` cells.
 - Required artifacts were present: `checkMesh.log`, `solver.log`, `residuals.csv`, VTK output, `openfoam-case.zip`, and `openfoam-report.html`.
+- The visual-preview milestone is implemented with lightweight PNG generation from OpenFOAM outputs:
+  - `residuals.png` from `residuals.csv`
+  - `velocity-magnitude.png` from ASCII VTK point data
+  - `pressure.png` from ASCII VTK point data
+- The OpenFOAM runner exports VTK with `foamToVTK -ascii`; binary VTK is skipped by the lightweight parser instead of blocking a run.
 
 Do not accept future NACA validation runs as successful if `checkMesh` fails or if OpenFOAM reports fewer than `40,000` cells.
 

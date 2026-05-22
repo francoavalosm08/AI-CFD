@@ -14,6 +14,7 @@ def test_write_run_report_includes_generated_openfoam_outputs(tmp_path: Path) ->
     (run_dir / "solver.log").write_text("Time = 600s\nEnd\n", encoding="utf-8")
     (run_dir / "openfoam-case.zip").write_text("zip", encoding="utf-8")
     (run_dir / "openfoam-commands.json").write_text("{}", encoding="utf-8")
+    (run_dir / "pressure.png").write_bytes(b"png")
 
     report = write_run_report(
         run_dir=run_dir,
@@ -30,3 +31,4 @@ def test_write_run_report_includes_generated_openfoam_outputs(tmp_path: Path) ->
     assert "1e-8" in html
     assert "Mesh OK" in html
     assert "solver.log" in html
+    assert "pressure.png" in html

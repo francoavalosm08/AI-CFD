@@ -61,6 +61,9 @@ def _html(
     for row in residual_rows:
         final_residuals[row["field"]] = row["final"]
     artifact_names = [
+        "pressure.png",
+        "velocity-magnitude.png",
+        "residuals.png",
         "solver.log",
         "checkMesh.log",
         "residuals.csv",
@@ -73,6 +76,14 @@ def _html(
         path = run_dir / name
         if path.exists():
             artifact_links.append(f'<li><a href="{path.resolve().as_uri()}">{html.escape(name)}</a></li>')
+    image_cards = []
+    for path in sorted(run_dir.glob("*.png")):
+        image_cards.append(
+            '<figure class="viz">'
+            f'<img src="{path.resolve().as_uri()}" alt="{html.escape(path.name)}">'
+            f"<figcaption>{html.escape(path.name)}</figcaption>"
+            "</figure>"
+        )
     input_cards = "\n".join(
         f'<div class="card"><div class="muted">{html.escape(key)}</div><div class="metric">{html.escape(value)}</div></div>'
         for key, value in inputs.items()
@@ -99,6 +110,8 @@ body{{font-family:Segoe UI,Arial,sans-serif;margin:32px;background:#f8fafc;color
 .metric{{font-size:24px;font-weight:700}} .muted{{color:#64748b}}
 table{{border-collapse:collapse;width:100%}} td,th{{border-bottom:1px solid #e2e8f0;text-align:left;padding:8px}}
 pre{{background:#0f172a;color:#e2e8f0;border-radius:6px;padding:12px;overflow:auto}}
+img{{max-width:100%;border:1px solid #dbe3ef;border-radius:6px;background:#fff}}
+figure.viz{{margin:12px 0}} figcaption{{color:#64748b;margin-top:6px}}
 a{{color:#075985}}
 </style>
 </head>
@@ -110,6 +123,7 @@ a{{color:#075985}}
 <p><b>Passed:</b> {html.escape(str(check_mesh_summary.get("passed")))}</p>
 <p><b>Cells:</b> {html.escape(str(check_mesh_summary.get("cells")))}</p>
 <pre>{html.escape(check_lines)}</pre></div>
+<div class="card"><h2>Visual previews</h2>{''.join(image_cards) or '<p class="muted">No PNG previews were generated.</p>'}</div>
 <div class="card"><h2>Final residuals</h2><table><tr><th>Field</th><th>Final residual</th></tr>{residual_table}</table></div>
 <div class="card"><h2>Generated artifacts</h2><ul>{''.join(artifact_links)}</ul></div>
 <div class="card"><h2>Solver log tail</h2><pre>{html.escape(solver_tail)}</pre></div>

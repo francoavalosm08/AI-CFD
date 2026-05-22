@@ -119,6 +119,9 @@ The dashboard should show or offer:
 - `checkMesh.log`
 - `solver.log`
 - `residuals.csv`
+- `residuals.png`
+- `velocity-magnitude.png`
+- `pressure.png`
 - `openfoam-case.zip`
 - `openfoam-report.html`
 - VTK files when available
@@ -142,6 +145,7 @@ The repo currently has:
 - first real smoke mesh source in `samples/external_box.geo`
 - generated NACA 4412 validation mesh/report scripts
 - 2D airfoil patch handling for `airfoil`, `inlet`, `outlet`, `farfield`, and `frontAndBack`
+- automatic PNG previews from OpenFOAM outputs: residual plot from `residuals.csv`, and pressure/velocity point previews from ASCII VTK
 - WSL-native staging under `/tmp/ai-cfd-workbench/<run_id>/case` for real runs, with copy-back into `.local-data/runs/<run_id>/case`
 
 Latest NACA 4412 validation result on this machine:
@@ -151,14 +155,14 @@ Latest NACA 4412 validation result on this machine:
 - OpenFOAM result: run reached `completed`.
 - `checkMesh`: passed.
 - Cell count: `57,292`.
-- Artifacts: `checkMesh.log`, `solver.log`, `residuals.csv`, VTK files, `openfoam-case.zip`, and `openfoam-report.html`.
+- Artifacts: `checkMesh.log`, `solver.log`, `residuals.csv`, `residuals.png`, `velocity-magnitude.png`, `pressure.png`, VTK files, `openfoam-case.zip`, and `openfoam-report.html`.
 
 Next implementation work:
 
 1. Add force coefficient setup based on the validated airfoil patch model.
 2. Validate `.msh` boundary patches before solver execution and return a clear API/UI error if required patches are missing.
 3. Improve STEP/STL mesh-prep failures while keeping `.msh` the most reliable first-class input.
-4. Add richer visualization after VTK/log artifacts are reliable.
+4. Replace the lightweight point-preview renderer with PyVista/vtk.js contours when richer visualization is needed.
 
 ## Troubleshooting Targets
 

@@ -12,6 +12,7 @@ from app.openfoam.case_builder import build_openfoam_case
 from app.openfoam.parsers import parse_check_mesh_summary, parse_residuals
 from app.openfoam.report import write_run_report
 from app.openfoam.runner_types import CommandResult
+from app.openfoam.visualization import write_visualization_previews
 from app.openfoam.wsl import (
     make_wsl_command_executor,
     quote_bash,
@@ -162,6 +163,7 @@ class LocalOpenFoamRunner:
             write_residual_csv(residuals, output / "residuals.csv")
         if staged_case_dir_wsl:
             await self._copy_wsl_case_back(staged_case_dir_wsl, case_dir)
+        visualizations = write_visualization_previews(output)
         archive = zip_case(case_dir, output / "openfoam-case.zip")
         chord_length = manifest.get("chord_length_m") or self.spec.length_scale
         reynolds_number = manifest.get("reynolds_number")
@@ -184,6 +186,7 @@ class LocalOpenFoamRunner:
             "case_dir": str(case_dir),
             "case_archive": str(archive),
             "report": str(report),
+            "visualizations": [path.name for path in visualizations],
             "commands": commands,
             "results": results,
             "manifest": manifest,
@@ -199,7 +202,7 @@ class LocalOpenFoamRunner:
                 "required": True,
             },
             {"name": "solve", "command": "simpleFoam", "required": True},
-            {"name": "export_vtk", "command": "foamToVTK", "required": False},
+            {"name": "export_vtk", "command": "foamToVTK -ascii", "required": False},
         ]
 
     def _write_command_log(self, output_dir: Path, name: str, result: CommandResult) -> None:

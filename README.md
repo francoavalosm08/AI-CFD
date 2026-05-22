@@ -85,7 +85,7 @@ The repo also includes a generated NACA 4412 validation mesh path for the curren
 .\scripts\smoke-local-openfoam.ps1 -SampleMeshPath .local-data\naca4412-improved\naca4412.msh -TimeoutSeconds 900
 ```
 
-The latest local NACA 4412 acceptance run used `25 m/s`, `2 deg` angle of attack, `1 m` chord, and `nu=1.5e-5 m^2/s` (`Re=1.666666e6`). OpenFOAM `checkMesh` passed with `57,292` cells and generated `checkMesh.log`, `solver.log`, `residuals.csv`, VTK files, `openfoam-case.zip`, and `openfoam-report.html`.
+The latest local NACA 4412 acceptance run used `25 m/s`, `2 deg` angle of attack, `1 m` chord, and `nu=1.5e-5 m^2/s` (`Re=1.666666e6`). OpenFOAM `checkMesh` passed with `57,292` cells and generated `checkMesh.log`, `solver.log`, `residuals.csv`, VTK files, `openfoam-case.zip`, `openfoam-report.html`, and PNG visual previews for residuals, velocity magnitude, and pressure.
 
 For your own meshes:
 
