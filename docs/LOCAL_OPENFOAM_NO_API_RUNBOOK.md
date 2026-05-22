@@ -61,6 +61,8 @@ NACA 4412 validation and bad-mesh validation:
 .\scripts\smoke-bad-mesh-validation.ps1
 ```
 
+CI note: GitHub Actions runs the frontend production build and fast `release-check.ps1` gate, including fake-mode smoke, browser E2E, and local OpenFOAM dry-run smoke. Real NACA and bad-mesh validation stay local/manual unless a CI runner is provisioned with OpenFOAM.
+
 First committed sample mesh generator:
 
 ```powershell

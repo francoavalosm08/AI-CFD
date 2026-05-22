@@ -142,4 +142,6 @@ Release quality gates:
 - real NACA validation passes
 - bad mesh validation fails clearly
 
+GitHub Actions now runs the fast release gate on `push` and `pull_request`: frontend production build, backend tests, frontend tests, fake-mode smoke, Playwright E2E, and local OpenFOAM dry-run smoke. Real NACA and bad-mesh OpenFOAM validation remain local/manual gates because they depend on this machine's WSL/OpenFOAM runtime.
+
 V1 remains scoped to local external aerodynamics only. Heat transfer, vibrations, aeroelastic coupling, Ansys, cloud collaboration, and interactive 3D are later milestones.

@@ -695,5 +695,5 @@ Goal:
 
 Goal:
 
-- CI, release checklist, operational runbook, known-limits documentation. Local quality gates already exist through `release-check.ps1`, NACA smoke, and bad-mesh smoke.
+- CI, release checklist, operational runbook, known-limits documentation. GitHub Actions now runs the frontend build and fast `release-check.ps1` gate; local quality gates also include NACA smoke and bad-mesh smoke.
 

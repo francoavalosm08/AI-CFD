@@ -164,6 +164,7 @@ The app currently supports:
 - Local OpenFOAM dry-run execution that creates a deterministic case, command manifest, logs, and case zip without an API key.
 - Local OpenFOAM airfoil validation with pre-run patch validation and OpenFOAM-generated force coefficient artifacts.
 - Browser E2E coverage for upload -> spec -> run -> dashboard artifacts.
+- GitHub Actions CI runs the frontend build and fast `release-check.ps1` gate on `push` and `pull_request`.
 
 ## Important Docs
 
@@ -223,12 +224,13 @@ Optional Foam-Agent/MCP mode (requires Docker + `.env` API key):
 The latest verified baseline passed:
 
 - Python/backend prerequisite check, including Gmsh 4.13.1.
-- Backend pytest suite: **76 tests** (includes MCP, preflight, mirroring, local OpenFOAM, mesh conversion, mesh validation, and force coefficients).
+- Backend pytest suite: **77 tests** (includes MCP, preflight, mirroring, local OpenFOAM, mesh conversion, mesh validation, force coefficients, and CI workflow coverage).
 - Frontend Vitest suite: 7 tests.
 - Fake-mode backend smoke flow (`local-verify.ps1 -Scope backend`).
 - Playwright browser E2E workflow (via full `release-check.ps1`).
 - Local OpenFOAM dry-run smoke flow (via full `release-check.ps1`).
 - Frontend production build (`npm --prefix frontend run build`).
+- GitHub Actions workflow contract test (`backend/tests/test_ci_workflow.py`).
 
 The verification script starts temporary backend/frontend servers and writes their logs under `.local-data/verify-logs/`, which is gitignored.
 

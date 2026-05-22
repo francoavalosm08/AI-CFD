@@ -167,6 +167,8 @@ Run one command for backend tests, frontend tests, fake-mode smoke flow, browser
 .\scripts\release-check.ps1
 ```
 
+GitHub Actions runs the frontend production build and this same fast release gate on `push` and `pull_request`. Real NACA and bad-mesh OpenFOAM validation remain local/manual because they need the WSL/OpenFOAM runtime configured on this machine.
+
 ## Optional Docker/Compose Validation
 
 This is secondary infrastructure from the Foam-Agent/MCP path. It is not the primary no-API OpenFOAM plan.

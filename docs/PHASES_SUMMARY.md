@@ -102,10 +102,10 @@ This is a simplified roadmap for non-software stakeholders, while keeping the ke
 **What is implemented locally:**
 - Backend pytest, frontend Vitest, Playwright E2E, fake smoke, dry-run OpenFOAM smoke, real NACA smoke, and bad-mesh smoke quality gates.
 - Release checklist through `scripts/release-check.ps1` plus the real-solver acceptance scripts.
+- GitHub Actions CI for the frontend build and fast release gate on `push` and `pull_request`.
 - Operational runbooks and known limits in `README.md`, `docs/LOCAL_OPENFOAM_NO_API_RUNBOOK.md`, `docs/EXTERNAL_AERO_V1_ROADMAP.md`, and `AGENTS.md`.
 
 **Remaining before wider release:**
-- Add CI wiring for the fast tests.
 - Keep real OpenFOAM smoke tests local/manual unless the CI runner has WSL/OpenFOAM or a Linux OpenFOAM image.
 
 **Keywords:** `CI`, `quality gates`, `release checklist`, `runbook`.

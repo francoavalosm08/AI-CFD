@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  fast-release-check:
+    name: Fast Release Check
+    runs-on: windows-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Playwright Chromium
+        shell: powershell
+        run: |
+          npm --prefix frontend ci
+          npm --prefix frontend exec playwright install chromium
+
+      - name: Build frontend
+        shell: powershell
+        run: npm --prefix frontend run build
+
+      - name: Run fast release check
+        shell: powershell
+        run: .\scripts\release-check.ps1
