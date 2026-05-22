@@ -45,6 +45,38 @@ Open the app at `http://localhost:5173`. Backend API runs at `http://localhost:8
 
 Local backend run data is written under `.local-data/` (gitignored).
 
+## Real Foam-Agent/OpenFOAM Mode (Local Docker + MCP)
+
+Use this when you want real solver execution. Fake mode remains the default fast regression path.
+
+1. Copy `.env.example` to `.env` and set `OPENAI_API_KEY`.
+2. Start Foam-Agent Docker:
+
+```powershell
+.\scripts\dev-foamagent.ps1
+```
+
+3. Start backend in MCP mode and frontend:
+
+```powershell
+.\scripts\dev-real-backend.ps1
+.\scripts\dev-frontend.ps1
+```
+
+4. Verify MCP health:
+
+```powershell
+.\scripts\smoke-mcp-health.ps1
+```
+
+5. Optional real solver acceptance (slow, uses model/API credits):
+
+```powershell
+.\scripts\smoke-real-run.ps1
+```
+
+See `docs/REAL_MODE_RUNBOOK.md` and `docs/PHASE_3_REAL_FOAMAGENT_OPENFOAM_PLAN.md` for troubleshooting and acceptance details.
+
 ## First Day Setup (Windows)
 
 If this is your first run on a machine:
@@ -121,7 +153,7 @@ npm install
 npm run dev
 ```
 
-The Vite dev server proxies `/api` to `http://localhost:8000`.
+The Vite dev server proxies `/api` to `http://127.0.0.1:8000` to avoid Windows localhost IPv4/IPv6 mismatches.
 
 ## Common Setup Issues
 
@@ -132,6 +164,10 @@ The Vite dev server proxies `/api` to `http://localhost:8000`.
 | `smoke-fake-run.ps1` cannot reach `/api/health` | Backend not running | Start backend with `.\scripts\dev-backend.ps1` |
 | Smoke test fails on upload/run | Backend dependencies incomplete | Rerun `.\scripts\local-verify.ps1` and check error output |
 | STEP/STL conversion fails | `gmsh` missing | Install Gmsh or use `.msh` upload |
+| `dev-foamagent.ps1` fails immediately | Docker Desktop stopped | Start Docker Desktop and rerun `-CheckOnly` |
+| `dev-real-backend.ps1` fails before startup | Foam-Agent MCP not reachable | Run `dev-foamagent.ps1`, then `smoke-mcp-health.ps1` |
+| Real run fails before planning | Missing API key or shared runs path | Check `.env` and `data/foamagent-runs` |
+| Real run completes with few artifacts | Mirroring or visualization issue | Inspect `data/runs/<run_id>/foamagent-*.json` |
 
 ## Notes
 

@@ -117,8 +117,16 @@ Main files:
 
 - `backend/app/foam_agent.py`
   - fake runner
-  - MCP runner skeleton
+  - MCP runner for real Foam-Agent/OpenFOAM mode
+  - JSON and SSE MCP response parsing
+  - MCP provenance JSON writing
   - Foam-Agent artifact mirroring helpers
+
+- `backend/app/preflight.py`
+  - real-mode checks for `OPENAI_API_KEY`, MCP reachability, and shared run directory access
+
+- `backend/app/errors.py`
+  - shared Foam-Agent exception type
 
 - `backend/app/store.py`
   - SQLite-backed repository for uploads and runs
@@ -152,6 +160,18 @@ Current workflow scripts:
 
 - `scripts/release-check.ps1`
   - release-readiness wrapper around `local-verify.ps1`
+
+- `scripts/dev-foamagent.ps1`
+  - starts or preflights Foam-Agent Docker on port `7860`
+
+- `scripts/dev-real-backend.ps1`
+  - starts FastAPI in `FOAM_AGENT_MODE=mcp`
+
+- `scripts/smoke-mcp-health.ps1`
+  - checks the MCP `tools/list` endpoint
+
+- `scripts/smoke-real-run.ps1`
+  - opt-in real `.msh` solver acceptance flow
 
 ### Samples
 
@@ -246,9 +266,10 @@ FOAM_AGENT_URL=http://127.0.0.1:7860/mcp
 
 Status:
 
-- backend skeleton exists
-- Docker Compose exists
-- full real-mode hardening is planned in `docs/PHASE_3_REAL_FOAMAGENT_OPENFOAM_PLAN.md`
+- backend MCP client, preflight, provenance, and artifact mirroring are implemented
+- Docker/Foam-Agent helper scripts are implemented
+- fake-mode regression remains the default automated release path
+- real acceptance still requires Docker Desktop running and a real `.env` `OPENAI_API_KEY`
 
 ## How To Run The App Locally
 
@@ -355,19 +376,20 @@ cd backend
 Expected:
 
 ```text
-16 passed
+28 passed
 ```
 
 ## Current Verified State
 
-As of May 20, 2026:
+As of May 22, 2026:
 
 - Gmsh installed through `winget`.
 - `gmsh -version` reports `4.13.1`.
-- `scripts/dev-check.ps1` reports Gmsh correctly.
-- `scripts/release-check.ps1` passes.
-- `npm run build` passes.
-- Live backend can accept an `.stl`, run the Gmsh conversion path, and complete a fake-mode run.
+- `scripts/release-check.ps1` passes with 28 backend tests, 4 frontend tests, fake-mode smoke, and Playwright E2E.
+- `npm --prefix frontend run build` passes.
+- `scripts/dev-foamagent.ps1 -CheckOnly` currently stops because Docker Desktop is not running.
+- `scripts/dev-real-backend.ps1 -SkipDependencyInstall` currently stops because `.env` is missing.
+- Phase 3 real solver acceptance is pending a real `.env` API key and Docker Desktop.
 
 ## API Surface
 
@@ -568,11 +590,20 @@ Result:
 
 ### Phase 3: Real Solver Integration
 
-Planned in `docs/PHASE_3_REAL_FOAMAGENT_OPENFOAM_PLAN.md`.
+In progress. Most code and local scripts are implemented; final acceptance is blocked on environment setup.
 
 Goal:
 
 - Docker-hosted Foam-Agent/OpenFOAM real runs through MCP.
+
+Remaining:
+
+- create `.env` from `.env.example` with a real `OPENAI_API_KEY`
+- start Docker Desktop
+- run `scripts/dev-foamagent.ps1 -CheckOnly`
+- run `scripts/smoke-mcp-health.ps1`
+- run `scripts/smoke-real-run.ps1`
+- fix any MCP schema or solver issues discovered by the real run
 
 ### Phase 4: Docker Reproducibility
 

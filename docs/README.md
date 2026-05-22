@@ -6,7 +6,8 @@ Read these docs in this order when picking up the project.
 2. `PROJECT_OVERVIEW_AND_RUNBOOK.md` - architecture, run commands, environment notes, and operating procedures.
 3. `PHASES_SUMMARY.md` - compact phase-by-phase record of what has been done.
 4. `PHASE_3_REAL_FOAMAGENT_OPENFOAM_PLAN.md` - detailed next milestone plan for real Foam-Agent/OpenFOAM integration.
-5. `PHASE_2_PLANNING_DRAFT.md` - earlier planning details and risk analysis.
+5. `REAL_MODE_RUNBOOK.md` - startup, health checks, and troubleshooting for MCP/real mode.
+6. `PHASE_2_PLANNING_DRAFT.md` - earlier planning details and risk analysis.
 
 ## Current Product Direction
 

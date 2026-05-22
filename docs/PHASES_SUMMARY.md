@@ -32,14 +32,19 @@ This is a simplified roadmap for non-software stakeholders, while keeping the ke
 
 **Keywords:** `smoke test`, `PowerShell`, `FastAPI`, `Vite`, `fake mode`, `local onboarding`.
 
-## Phase 3: Real Solver Integration (MCP/OpenFOAM)
+## Phase 3: Real Solver Integration (MCP/OpenFOAM) (In Progress)
 
 **Goal:** Move from fake execution to real CFD runs.
 
-**What it should do:**
-- Connect backend to real `Foam-Agent MCP` endpoint.
-- Run real `OpenFOAM` cases.
-- Validate artifact mirroring and run status behavior under real workloads.
+**What is implemented now:**
+- MCP client hardening, provenance JSON, and artifact mirroring tests in `backend/tests/`.
+- Real-mode preflight checks for API key, MCP reachability, and shared run directories.
+- Local scripts: `dev-foamagent.ps1`, `dev-real-backend.ps1`, `smoke-mcp-health.ps1`, `smoke-real-run.ps1`.
+- Runbook: `docs/REAL_MODE_RUNBOOK.md`.
+
+**Still required for completion:**
+- A successful opt-in `smoke-real-run.ps1` against Docker-hosted Foam-Agent on a developer machine.
+- Any MCP schema adjustments discovered during the first real `.msh` acceptance run.
 
 **Keywords:** `MCP`, `OpenFOAM`, `Foam-Agent`, `real run`, `artifacts`.
 

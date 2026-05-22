@@ -51,6 +51,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             if settings.foam_agent_mode == "fake"
             else FoamAgentMcpClient(
                 url=settings.foam_agent_url,
+                timeout_seconds=settings.foam_agent_run_timeout_seconds,
+                run_timeout_seconds=settings.foam_agent_run_timeout_seconds,
                 agent_runs_root=settings.foam_agent_agent_runs_root,
                 app_runs_root=settings.resolved_foam_agent_app_runs_root(),
             )

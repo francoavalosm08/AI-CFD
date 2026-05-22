@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import json
 import shutil
 from collections.abc import Awaitable, Callable
@@ -9,11 +8,9 @@ from typing import Any
 
 import httpx
 
+from app.errors import FoamAgentError
 from app.jobs import FoamAgentRunner
-
-
-class FoamAgentError(RuntimeError):
-    pass
+from app.preflight import raise_if_preflight_failed, run_real_mode_preflight
 
 
 class FakeFoamAgentRunner(FoamAgentRunner):
@@ -46,14 +43,32 @@ class FoamAgentMcpClient(FoamAgentRunner):
         *,
         url: str,
         timeout_seconds: int = 3600,
+        run_timeout_seconds: int | None = None,
         agent_runs_root: str = "/home/openfoam/Foam-Agent/runs",
         app_runs_root: Path | None = None,
+        openai_api_key: str | None = None,
+        preflight_timeout_seconds: float = 10,
     ) -> None:
         self.url = url
         self.timeout_seconds = timeout_seconds
+        self.run_timeout_seconds = run_timeout_seconds or timeout_seconds
         self._request_id = 0
         self.agent_runs_root = agent_runs_root.rstrip("/")
         self.app_runs_root = app_runs_root
+        self.openai_api_key = openai_api_key
+        self.preflight_timeout_seconds = preflight_timeout_seconds
+
+    async def preflight(self, emit: Callable[[str, str], Awaitable[None]]) -> None:
+        if not self.app_runs_root:
+            raise FoamAgentError("FOAM_AGENT_APP_RUNS_ROOT is not configured for MCP mode")
+        result = await run_real_mode_preflight(
+            mcp_url=self.url,
+            openai_api_key=self.openai_api_key,
+            app_runs_root=self.app_runs_root,
+            timeout_seconds=self.preflight_timeout_seconds,
+        )
+        raise_if_preflight_failed(result)
+        await emit("real_preflight", "Real-mode preflight checks passed")
 
     async def run_external_aero(
         self,
@@ -63,8 +78,12 @@ class FoamAgentMcpClient(FoamAgentRunner):
         output_dir: str,
         emit: Callable[[str, str], Awaitable[None]],
     ) -> dict:
+        output = Path(output_dir)
+        output.mkdir(parents=True, exist_ok=True)
+
         await emit("planning", "Calling Foam-Agent plan tool")
         plan = await self._call_tool("plan", {"request": {"user_requirement": prompt}})
+        self._write_provenance(output, "foamagent-plan.json", plan)
 
         await emit("meshing", "Calling Foam-Agent input writer")
         generated = await self._call_tool(
@@ -80,14 +99,17 @@ class FoamAgentMcpClient(FoamAgentRunner):
                 }
             },
         )
+        self._write_provenance(output, "foamagent-input-writer.json", generated)
         case_dir = generated["case_dir"]
 
         await emit("running", f"Running OpenFOAM case at {case_dir}")
         run_result = await self._call_tool(
             "run",
-            {"request": {"case_dir": case_dir, "timeout": self.timeout_seconds}},
+            {"request": {"case_dir": case_dir, "timeout": self.run_timeout_seconds}},
         )
+        self._write_provenance(output, "foamagent-run.json", run_result)
 
+        review_written = False
         if run_result.get("status") == "failed":
             await emit("reviewing", "Reviewing Foam-Agent run errors")
             review = await self._call_tool(
@@ -100,6 +122,8 @@ class FoamAgentMcpClient(FoamAgentRunner):
                     }
                 },
             )
+            self._write_provenance(output, "foamagent-review.json", review)
+            review_written = True
             await self._call_tool(
                 "apply_fixes",
                 {
@@ -114,27 +138,32 @@ class FoamAgentMcpClient(FoamAgentRunner):
             await emit("running", "Re-running case after Foam-Agent fixes")
             run_result = await self._call_tool(
                 "run",
-                {"request": {"case_dir": case_dir, "timeout": self.timeout_seconds}},
+                {"request": {"case_dir": case_dir, "timeout": self.run_timeout_seconds}},
             )
+            self._write_provenance(output, "foamagent-run-rerun.json", run_result)
 
         await emit("visualizing", "Generating pressure and velocity visualizations")
         pressure = await self._call_tool(
             "visualization",
             {"request": {"case_dir": case_dir, "quantity": "pressure", "visualization_type": "pyvista"}},
         )
+        self._write_provenance(output, "foamagent-visualization-pressure.json", pressure)
         velocity = await self._call_tool(
             "visualization",
             {"request": {"case_dir": case_dir, "quantity": "velocity", "visualization_type": "pyvista"}},
         )
+        self._write_provenance(output, "foamagent-visualization-velocity.json", velocity)
         mirrored = self._mirror_case_artifacts(
             case_dir=case_dir,
-            output_dir=Path(output_dir),
+            output_dir=output,
             explicit_paths=pressure.get("artifacts", []) + velocity.get("artifacts", []),
         )
         return {
             "mode": "mcp",
             "case_dir": case_dir,
+            "mesh_path": mesh_path,
             "run": run_result,
+            "review_written": review_written,
             "visualizations": pressure.get("artifacts", []) + velocity.get("artifacts", []),
             "mirrored_artifacts": [str(path) for path in mirrored],
         }
@@ -156,10 +185,15 @@ class FoamAgentMcpClient(FoamAgentRunner):
                 },
             )
         if response.status_code >= 400:
-            raise FoamAgentError(f"Foam-Agent HTTP {response.status_code}: {response.text}")
+            excerpt = response.text[:240].strip()
+            raise FoamAgentError(
+                f"Foam-Agent tool '{name}' failed with HTTP {response.status_code}: {excerpt}"
+            )
         decoded = self._decode_response(response)
         if "error" in decoded:
-            raise FoamAgentError(str(decoded["error"]))
+            error = decoded["error"]
+            message = error.get("message", error) if isinstance(error, dict) else str(error)
+            raise FoamAgentError(f"Foam-Agent tool '{name}' returned MCP error: {message}")
         return self._extract_tool_payload(decoded.get("result", {}))
 
     def _next_id(self) -> int:
@@ -167,11 +201,14 @@ class FoamAgentMcpClient(FoamAgentRunner):
         return self._request_id
 
     def _decode_response(self, response: httpx.Response) -> dict[str, Any]:
+        content_type = response.headers.get("content-type", "")
         text = response.text.strip()
-        if text.startswith("data:"):
+        if "text/event-stream" in content_type or text.startswith("data:"):
             for line in text.splitlines():
                 if line.startswith("data:"):
-                    return json.loads(line.removeprefix("data:").strip())
+                    payload = line.removeprefix("data:").strip()
+                    if payload:
+                        return json.loads(payload)
         return response.json()
 
     def _extract_tool_payload(self, result: dict[str, Any]) -> dict[str, Any]:
@@ -188,6 +225,11 @@ class FoamAgentMcpClient(FoamAgentRunner):
         if isinstance(result, dict):
             return result
         return {"result": result}
+
+    def _write_provenance(self, output_dir: Path, filename: str, payload: dict[str, Any]) -> Path:
+        path = output_dir / filename
+        path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+        return path
 
     def _mirror_case_artifacts(
         self, *, case_dir: str, output_dir: Path, explicit_paths: list[str]

@@ -9,14 +9,21 @@ from pydantic import BaseModel
 class Settings(BaseModel):
     data_root: Path = Path(os.environ.get("AI_CFD_DATA_ROOT", "data"))
     database_path: Path | None = None
-    foam_agent_url: str = os.environ.get("FOAM_AGENT_URL", "http://foamagent:7860/mcp")
-    foam_agent_mode: str = os.environ.get("FOAM_AGENT_MODE", "mcp")
+    foam_agent_url: str = os.environ.get("FOAM_AGENT_URL", "http://127.0.0.1:7860/mcp")
+    foam_agent_mode: str = os.environ.get("FOAM_AGENT_MODE", "fake")
+    foam_agent_run_timeout_seconds: int = int(
+        os.environ.get("FOAM_AGENT_RUN_TIMEOUT_SECONDS", "900")
+    )
     app_data_root: Path | None = None
     agent_data_root: str = os.environ.get("FOAM_AGENT_SHARED_AGENT_ROOT", "/workspace/data")
     foam_agent_agent_runs_root: str = os.environ.get(
         "FOAM_AGENT_AGENT_RUNS_ROOT", "/home/openfoam/Foam-Agent/runs"
     )
-    foam_agent_app_runs_root: Path | None = None
+    foam_agent_app_runs_root: Path | None = (
+        Path(os.environ["FOAM_AGENT_APP_RUNS_ROOT"])
+        if os.environ.get("FOAM_AGENT_APP_RUNS_ROOT")
+        else None
+    )
     gmsh_command: str = os.environ.get("GMSH_COMMAND", "gmsh")
 
     def resolved_database_path(self) -> Path:

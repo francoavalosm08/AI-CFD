@@ -57,6 +57,9 @@ class RunExecutor:
                 run.spec, agent_visible_mesh_path=agent_mesh_path
             )
 
+            if hasattr(self.foam_agent, "preflight"):
+                await self.foam_agent.preflight(emit)
+
             result = await self.foam_agent.run_external_aero(
                 prompt=run.prompt_used,
                 mesh_path=agent_mesh_path,
