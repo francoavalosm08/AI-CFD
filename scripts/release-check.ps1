@@ -33,6 +33,19 @@ function Test-PortAvailable {
     }
 }
 
+function Get-FreeTcpPort {
+    $listener = $null
+    try {
+        $listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, 0)
+        $listener.Start()
+        return $listener.LocalEndpoint.Port
+    } finally {
+        if ($listener) {
+            $listener.Stop()
+        }
+    }
+}
+
 function Get-Health {
     param([Parameter(Mandatory = $true)][string]$BaseUrl)
 
@@ -77,7 +90,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 if (-not $SkipLocalOpenFoamDryRun) {
-    $localOpenFoamPort = 8010
+    $localOpenFoamPort = Get-FreeTcpPort
     $localOpenFoamUrl = "http://127.0.0.1:$localOpenFoamPort"
     $logRoot = Join-Path $repoRoot ".local-data\verify-logs"
     New-Item -ItemType Directory -Force -Path $logRoot | Out-Null
@@ -92,7 +105,7 @@ if (-not $SkipLocalOpenFoamDryRun) {
     $backendJob = Start-Job -ScriptBlock {
         param($BackendScript, $Port, $ServerLog)
         $ErrorActionPreference = "Stop"
-        & powershell -NoProfile -ExecutionPolicy Bypass -File $BackendScript -SkipDependencyInstall -DryRun -BindHost "127.0.0.1" -Port $Port > $ServerLog 2>&1
+        & powershell -NoProfile -ExecutionPolicy Bypass -File $BackendScript -SkipDependencyInstall -DryRun -NoReload -BindHost "127.0.0.1" -Port $Port > $ServerLog 2>&1
     } -ArgumentList $localOpenFoamBackendScript, $localOpenFoamPort, $serverLog
 
     try {
@@ -100,9 +113,18 @@ if (-not $SkipLocalOpenFoamDryRun) {
         $healthy = $false
         while ((Get-Date) -lt $deadline) {
             $health = Get-Health -BaseUrl $localOpenFoamUrl
-            if ($health -and $health.status -eq "ok" -and $health.runner_mode -eq "local_openfoam") {
-                $healthy = $true
-                break
+            if ($health -and $health.status -eq "ok") {
+                $runnerMode = $null
+                if ($health.PSObject.Properties.Name -contains "runner_mode") {
+                    $runnerMode = $health.runner_mode
+                }
+                if ([string]::IsNullOrWhiteSpace($runnerMode) -and ($health.PSObject.Properties.Name -contains "foam_agent_mode")) {
+                    $runnerMode = $health.foam_agent_mode
+                }
+                if ($runnerMode -eq "local_openfoam") {
+                    $healthy = $true
+                    break
+                }
             }
             Start-Sleep -Milliseconds 500
         }

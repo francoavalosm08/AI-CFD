@@ -6,7 +6,8 @@ param(
     [int]$Port = 8000,
     [string]$Runtime = $(if ($env:OPENFOAM_RUNTIME) { $env:OPENFOAM_RUNTIME } else { "wsl" }),
     [string]$Distro = $(if ($env:OPENFOAM_WSL_DISTRO) { $env:OPENFOAM_WSL_DISTRO } else { "" }),
-    [string]$Bashrc = $(if ($env:OPENFOAM_BASHRC) { $env:OPENFOAM_BASHRC } else { "/opt/openfoam*/etc/bashrc" })
+    [string]$Bashrc = $(if ($env:OPENFOAM_BASHRC) { $env:OPENFOAM_BASHRC } else { "/opt/openfoam*/etc/bashrc" }),
+    [switch]$NoReload
 )
 
 Set-StrictMode -Version Latest
@@ -102,7 +103,11 @@ $dryRunText = if ($DryRun) { "enabled" } else { "disabled" }
 Write-Host "Starting backend on http://localhost:$Port (CFD_RUNNER_MODE=local_openfoam, runtime=$Runtime, dry-run=$dryRunText, AI_CFD_DATA_ROOT=$dataRoot)"
 Push-Location $backendPath
 try {
-    & $venvPython -m uvicorn app.main:app --reload --host $BindHost --port $Port
+    $uvicornArgs = @("-m", "uvicorn", "app.main:app", "--host", $BindHost, "--port", [string]$Port)
+    if (-not $NoReload) {
+        $uvicornArgs += "--reload"
+    }
+    & $venvPython @uvicornArgs
 } finally {
     Pop-Location
 }
