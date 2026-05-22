@@ -2,7 +2,7 @@
 
 This is a simplified roadmap for non-software stakeholders, while keeping the key technical keywords.
 
-## Phase 1: Local Non-Docker Bootstrap (Current)
+## Phase 1: Local Non-Docker Bootstrap (Complete)
 
 **Goal:** Make daily development fast on Windows without using Docker first.
 
@@ -19,11 +19,11 @@ This is a simplified roadmap for non-software stakeholders, while keeping the ke
 
 **Business outcome:** Team can build and demo core workflow quickly without waiting for full solver infrastructure.
 
-## Phase 2: Solidify Local Workflow (Next)
+## Phase 2: Solidify Local Workflow (Complete)
 
 **Goal:** Make Phase 1 reliable for repeated use by more people.
 
-**What it should do:**
+**What it did:**
 - Improve error handling and troubleshooting messages in scripts/docs.
 - Add stronger local acceptance checks (repeatable smoke scenarios).
 - Add one-command verification (`release check`) for backend + frontend + smoke.
@@ -48,13 +48,18 @@ This is a simplified roadmap for non-software stakeholders, while keeping the ke
 - Local scripts: `dev-foamagent.ps1`, `dev-real-backend.ps1`, `smoke-mcp-health.ps1`, `smoke-real-run.ps1`.
 - Runbook: `docs/REAL_MODE_RUNBOOK.md`.
 
-**Still required for the new primary path:**
+**Implemented for the new primary path:**
 - Local runner settings and scripts.
 - WSL2/OpenFOAM preflight.
 - Deterministic `.msh` case builder.
 - OpenFOAM command manifest and dry-run mode.
 - Log/residual/artifact parsing.
-- A successful no-API local OpenFOAM smoke run.
+- No-API dry-run smoke script.
+
+**Still required for real solver acceptance:**
+- Run WSL/OpenFOAM preflight on a machine with WSL2 Ubuntu and OpenFOAM installed.
+- Use a valid external-aero volume `.msh` for the first real OpenFOAM smoke run.
+- Improve boundary detection, force coefficients, and visualization based on the first real logs.
 
 **Keywords:** `OpenFOAM`, `WSL2`, `no API key`, `deterministic templates`, `real run`, `artifacts`.
 

@@ -13,7 +13,7 @@ The repository already contains a working V1 local web app for an AI CFD workflo
 - Optional Docker/Foam-Agent files from the previous integration path.
 - Planning and project docs under `docs/`.
 
-Do not restart from a blank plan. The immediate next engineering milestone is to **pivot Phase 3 to the no-runtime-API-key local OpenFOAM runner** described in `docs/PHASE_3_REAL_FOAMAGENT_OPENFOAM_PLAN.md` and `docs/LOCAL_OPENFOAM_NO_API_RUNBOOK.md`. The Foam-Agent/MCP work remains in the repo as an optional advanced path, but it is no longer the primary V1 acceptance target.
+Do not restart from a blank plan. Phase 3 has been pivoted to the no-runtime-API-key local OpenFOAM runner described in `docs/PHASE_3_REAL_FOAMAGENT_OPENFOAM_PLAN.md` and `docs/LOCAL_OPENFOAM_NO_API_RUNBOOK.md`. The case-generation/dry-run slice is implemented. The Foam-Agent/MCP work remains in the repo as an optional advanced path, but it is no longer the primary V1 acceptance target.
 
 ## Current Product Direction (Updated 2026-05-22)
 
@@ -80,14 +80,17 @@ A prior agent session implemented most of Phase 3 code and docs. Fake mode was p
 - Any MCP tool schema fixes discovered during first real run
 - Full `.\scripts\release-check.ps1` after any follow-up changes; last fake-mode regression passed on 2026-05-22
 
-This old gate is now optional. The next primary gate is the no-API local OpenFOAM runner:
+This old gate is now optional. The primary no-API local OpenFOAM gate is:
 
 ```powershell
 .\scripts\dev-openfoam-wsl.ps1 -CheckOnly
-.\scripts\dev-openfoam-backend.ps1
+.\scripts\dev-openfoam-backend.ps1 -DryRun
 .\scripts\smoke-local-openfoam.ps1 -DryRun
+.\scripts\dev-openfoam-backend.ps1
 .\scripts\smoke-local-openfoam.ps1
 ```
+
+Use the real non-dry-run smoke only after WSL2 Ubuntu/OpenFOAM are installed and a valid external-aero volume `.msh` is available.
 
 ## User Goal
 
@@ -106,6 +109,7 @@ The app currently supports:
 - Streaming run events through `GET /api/runs/{run_id}/events`.
 - Discovering and serving run artifacts.
 - Fake Foam-Agent execution that creates representative image/log/download artifacts.
+- Local OpenFOAM dry-run execution that creates a deterministic case, command manifest, logs, and case zip without an API key.
 - Browser E2E coverage for upload -> spec -> run -> dashboard artifacts.
 
 ## Important Docs
@@ -164,10 +168,11 @@ Optional Foam-Agent/MCP mode (requires Docker + `.env` API key):
 The latest verified baseline passed:
 
 - Python/backend prerequisite check, including Gmsh 4.13.1.
-- Backend pytest suite: **28 tests** (includes MCP, preflight, mirroring).
-- Frontend Vitest suite: 4 tests.
+- Backend pytest suite: **49 tests** (includes MCP, preflight, mirroring, local OpenFOAM).
+- Frontend Vitest suite: 5 tests.
 - Fake-mode backend smoke flow (`local-verify.ps1 -Scope backend`).
 - Playwright browser E2E workflow (via full `release-check.ps1`).
+- Local OpenFOAM dry-run smoke flow (via full `release-check.ps1`).
 - Frontend production build (`npm --prefix frontend run build`).
 
 The verification script starts temporary backend/frontend servers and writes their logs under `.local-data/verify-logs/`, which is gitignored.
@@ -183,9 +188,9 @@ The verification script starts temporary backend/frontend servers and writes the
 
 ## Next Milestone
 
-**Implement the no-API local OpenFOAM runner**, then proceed to Phases 4–5 per `docs/PHASES_SUMMARY.md`.
+**Complete real WSL/OpenFOAM acceptance**, then proceed to Phases 4–5 per `docs/PHASES_SUMMARY.md`.
 
-Phase 3 remaining steps:
+Phase 3 implemented steps:
 
 1. Add local runner settings while preserving fake and optional MCP modes.
 2. Add WSL2/OpenFOAM preflight and Windows-to-WSL path mapping.
@@ -194,6 +199,13 @@ Phase 3 remaining steps:
 5. Add parsers/artifact collection for logs, residuals, VTK, and case zip.
 6. Add no-API smoke scripts and update UI copy away from Foam-Agent-only language.
 7. Run `.\scripts\release-check.ps1` to confirm fake-mode regression still passes.
+
+Phase 3 remaining steps:
+
+1. Run `.\scripts\dev-openfoam-wsl.ps1 -CheckOnly` on a machine with WSL2/OpenFOAM installed.
+2. Run `.\scripts\smoke-local-openfoam.ps1 -SampleMeshPath <valid-external-aero-volume.msh>` against the non-dry-run backend.
+3. Use the real OpenFOAM logs to improve boundary detection and force coefficient setup.
+4. Keep `.\scripts\release-check.ps1` passing after any follow-up changes.
 
 Keep the API and UI stable unless the real run proves they need to change.
 

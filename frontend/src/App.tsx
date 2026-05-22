@@ -1,5 +1,5 @@
 ﻿import { Activity, Box, FileUp, Gauge, Play, RotateCcw, Square, Wind } from "lucide-react";
-import { FormEvent, useMemo, useRef, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   artifactUrl,
@@ -7,11 +7,13 @@ import {
   createRun,
   defaultSpec,
   fetchArtifacts,
+  fetchHealth,
   fetchRun,
+  formatRunnerMode,
   formatStatus,
   uploadGeometry
 } from "./client";
-import type { Artifact, RunRecord, SimulationSpec, UploadRecord } from "./types";
+import type { Artifact, HealthResponse, RunRecord, SimulationSpec, UploadRecord } from "./types";
 
 type EventLine = {
   status: string;
@@ -27,6 +29,7 @@ export default function App() {
   const [run, setRun] = useState<RunRecord | null>(null);
   const [artifacts, setArtifacts] = useState<Artifact[]>([]);
   const [events, setEvents] = useState<EventLine[]>([]);
+  const [health, setHealth] = useState<HealthResponse | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -36,6 +39,13 @@ export default function App() {
     () => artifacts.filter((artifact) => artifact.type === "download" || artifact.type === "plot_data" || artifact.type === "vtk"),
     [artifacts]
   );
+  const runnerMode = health?.runner_mode ?? health?.foam_agent_mode;
+
+  useEffect(() => {
+    void fetchHealth()
+      .then(setHealth)
+      .catch(() => undefined);
+  }, []);
 
   async function handleFile(file: File) {
     setBusy(true);
@@ -106,11 +116,14 @@ export default function App() {
       <section className="topbar">
         <div>
           <h1>AI CFD Workbench</h1>
-          <p>Local external-aerodynamics runs through Foam-Agent and OpenFOAM.</p>
+          <p>Local external-aerodynamics runs with fake, local OpenFOAM, or optional Foam-Agent MCP modes.</p>
         </div>
-        <div className="status-chip">
-          <Activity size={18} />
-          {run ? formatStatus(run.status) : "Ready"}
+        <div className="topbar-actions">
+          <div className="status-chip">
+            <Activity size={18} />
+            {run ? formatStatus(run.status) : "Ready"}
+          </div>
+          <div className="status-chip">Runner: {formatRunnerMode(runnerMode)}</div>
         </div>
       </section>
 
@@ -246,7 +259,7 @@ export default function App() {
 
           <button className="run-button" type="submit" disabled={!spec || busy}>
             <Play size={18} />
-            Start Foam-Agent run
+            Start CFD run
           </button>
         </form>
       </section>

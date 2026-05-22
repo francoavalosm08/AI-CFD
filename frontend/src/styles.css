@@ -76,6 +76,13 @@ h2 {
   color: #65746f;
 }
 
+.topbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
 .status-chip,
 .upload-summary {
   align-items: center;
@@ -320,6 +327,10 @@ figcaption {
   .topbar {
     align-items: flex-start;
     display: grid;
+  }
+
+  .topbar-actions {
+    justify-content: flex-start;
   }
 
   .run-summary {

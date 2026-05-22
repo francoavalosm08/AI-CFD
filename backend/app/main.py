@@ -14,6 +14,7 @@ from fastapi.staticfiles import StaticFiles
 from app.files import UnsupportedUploadType, detect_upload_kind
 from app.foam_agent import FakeFoamAgentRunner, FoamAgentMcpClient
 from app.jobs import RunExecutor
+from app.openfoam.runner import LocalOpenFoamRunner
 from app.schemas import ArtifactListResponse, RunCreateRequest, RunRecord, RunStatus, UploadRecord
 from app.settings import Settings
 from app.store import Repository
@@ -45,20 +46,28 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def emit(run_id: str, status: str, message: str) -> None:
         events[run_id].append((status, message))
 
-    def make_runner() -> RunExecutor:
-        foam_agent = (
-            FakeFoamAgentRunner()
-            if settings.foam_agent_mode == "fake"
-            else FoamAgentMcpClient(
+    def make_runner(run: RunRecord) -> RunExecutor:
+        if settings.cfd_runner_mode == "fake":
+            runner = FakeFoamAgentRunner()
+        elif settings.cfd_runner_mode == "local_openfoam":
+            runner = LocalOpenFoamRunner(
+                spec=run.spec,
+                dry_run=settings.openfoam_dry_run,
+                runtime=settings.openfoam_runtime,
+                wsl_distro=settings.openfoam_wsl_distro,
+                openfoam_bashrc=settings.openfoam_bashrc,
+                timeout_seconds=settings.openfoam_run_timeout_seconds,
+            )
+        else:
+            runner = FoamAgentMcpClient(
                 url=settings.foam_agent_url,
                 timeout_seconds=settings.foam_agent_run_timeout_seconds,
                 run_timeout_seconds=settings.foam_agent_run_timeout_seconds,
                 agent_runs_root=settings.foam_agent_agent_runs_root,
                 app_runs_root=settings.resolved_foam_agent_app_runs_root(),
             )
-        )
         return RunExecutor(
-            foam_agent=foam_agent,
+            foam_agent=runner,
             app_data_root=settings.resolved_app_data_root(),
             agent_data_root=settings.agent_data_root,
             emit=emit,
@@ -75,12 +84,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             run.error = f"Upload not found: {run.upload_id}"
             repo.save_run(run)
             return
-        updated = await make_runner().execute(run, upload)
+        updated = await make_runner(run).execute(run, upload)
         repo.save_run(updated)
 
     @app.get("/api/health")
     async def health() -> dict[str, str]:
-        return {"status": "ok", "foam_agent_mode": settings.foam_agent_mode}
+        return {
+            "status": "ok",
+            "foam_agent_mode": settings.cfd_runner_mode,
+            "runner_mode": settings.cfd_runner_mode,
+        }
 
     @app.post("/api/uploads", response_model=UploadRecord)
     async def upload_file(file: UploadFile = File(...)) -> UploadRecord:

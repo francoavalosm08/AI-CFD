@@ -8,6 +8,19 @@
 
 **Tech Stack:** FastAPI, React/Vite, SQLite, PowerShell, WSL2 Ubuntu, Foundation OpenFOAM, Gmsh, Python standard library templates, pytest, Vitest, Playwright.
 
+## Implementation Status
+
+The first local OpenFOAM implementation slice is now in the repo:
+
+- `CFD_RUNNER_MODE=local_openfoam` is wired into the backend.
+- The local runner writes deterministic OpenFOAM case files for `.msh` inputs.
+- Each run writes `openfoam-commands.json` before solver execution.
+- Dry-run mode writes the case, command manifest, dry-run log, and case zip without WSL/OpenFOAM.
+- The WSL path adapter, WSL preflight script, log/residual helpers, and no-API smoke script are implemented.
+- The frontend copy now presents generic CFD runs and displays runner mode from `/api/health`.
+
+Remaining Phase 3 work is environment-dependent: install/verify WSL2 Ubuntu and OpenFOAM, run a real external-aero volume `.msh`, then refine boundary detection and force coefficient setup from real logs.
+
 ---
 
 ## Decision Change

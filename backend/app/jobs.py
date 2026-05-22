@@ -52,7 +52,10 @@ class RunExecutor:
         try:
             self._set_status(run, RunStatus.preprocessing, "Preparing uploaded geometry")
             mesh_path = await self._prepare_mesh(upload, run_dir)
-            agent_mesh_path = self._to_agent_path(mesh_path) if mesh_path else None
+            use_host_mesh_path = getattr(self.foam_agent, "mesh_path_mode", "") == "host"
+            agent_mesh_path = (
+                str(mesh_path) if use_host_mesh_path and mesh_path else self._to_agent_path(mesh_path) if mesh_path else None
+            )
             run.prompt_used = build_foam_agent_prompt(
                 run.spec, agent_visible_mesh_path=agent_mesh_path
             )
@@ -75,7 +78,7 @@ class RunExecutor:
             self._set_status(run, RunStatus.failed, run.error)
             run.completed_at = datetime.now(timezone.utc)
         except Exception as exc:
-            run.error = f"Foam-Agent run failed: {exc}"
+            run.error = f"Simulation run failed: {exc}"
             self._set_status(run, RunStatus.failed, run.error)
             run.completed_at = datetime.now(timezone.utc)
         return run

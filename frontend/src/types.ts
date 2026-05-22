@@ -58,3 +58,9 @@ export type RunRecord = {
   summary: Record<string, unknown>;
   artifacts: Artifact[];
 };
+
+export type HealthResponse = {
+  status: "ok" | string;
+  foam_agent_mode?: string;
+  runner_mode?: string;
+};

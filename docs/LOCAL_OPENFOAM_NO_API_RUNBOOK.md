@@ -1,6 +1,6 @@
 # Local OpenFOAM No-API Runbook
 
-This is the target V1 real-solver path. It is planned, not fully implemented yet.
+This is the V1 real-solver path that avoids runtime LLM/API keys. The case-generation and dry-run path is implemented; real solver acceptance depends on WSL2/OpenFOAM being installed on the machine.
 
 ## Purpose
 
@@ -28,16 +28,23 @@ The no-API path generates case files using local templates and known V1 assumpti
 - conservative turbulence defaults
 - local command execution
 
-## Planned Commands
+## Commands
 
-After implementation, the intended workflow is:
+Dry-run workflow, no WSL/OpenFOAM required:
+
+```powershell
+.\scripts\dev-openfoam-backend.ps1 -DryRun
+.\scripts\dev-frontend.ps1
+.\scripts\smoke-local-openfoam.ps1 -DryRun
+```
+
+Real solver workflow after WSL/OpenFOAM setup:
 
 ```powershell
 .\scripts\dev-openfoam-wsl.ps1 -CheckOnly
 .\scripts\dev-openfoam-backend.ps1
 .\scripts\dev-frontend.ps1
-.\scripts\smoke-local-openfoam.ps1 -DryRun
-.\scripts\smoke-local-openfoam.ps1
+.\scripts\smoke-local-openfoam.ps1 -SampleMeshPath <valid-external-aero-volume.msh>
 ```
 
 None of these should require `.env` or `OPENAI_API_KEY`.
@@ -59,7 +66,7 @@ Required runtime tools:
 
 ## Manual Step-By-Step Mode
 
-Each run should write `openfoam-commands.json` before executing commands. That file lets an IDE agent or human run the same steps manually:
+Each run writes `openfoam-commands.json` before executing commands. That file lets an IDE agent or human run the same steps manually:
 
 ```text
 1. import mesh with gmshToFoam
@@ -69,7 +76,7 @@ Each run should write `openfoam-commands.json` before executing commands. That f
 5. parse logs and update dashboard
 ```
 
-Dry-run mode should create the case folder and command manifest without executing solver commands.
+Dry-run mode creates the case folder and command manifest without executing solver commands.
 
 ## Expected Artifacts
 
@@ -91,17 +98,20 @@ The repo currently has:
 
 - fake-mode workflow passing
 - optional Foam-Agent MCP path implemented and tested
-- no-API local OpenFOAM path planned in `PHASE_3_REAL_FOAMAGENT_OPENFOAM_PLAN.md`
+- local OpenFOAM runner settings
+- WSL path adapter and preflight script
+- deterministic `.msh` case builder
+- command manifest and dry-run mode
+- log/residual/artifact helpers
+- local runner wired into `/api/runs`
+- no-API smoke scripts
 
 Next implementation work:
 
-1. Add local runner settings.
-2. Add WSL path adapter and OpenFOAM preflight.
-3. Add deterministic case builder.
-4. Add command runner and dry-run mode.
-5. Add log/artifact parsers.
-6. Wire the runner into `/api/runs`.
-7. Add no-API smoke scripts.
+1. Run dry-run smoke in local verification after script validation is stable.
+2. Install/verify WSL2 Ubuntu and OpenFOAM.
+3. Run a real external-aero `.msh` through `smoke-local-openfoam.ps1`.
+4. Improve boundary detection and force coefficient setup based on real OpenFOAM logs.
 
 ## Troubleshooting Targets
 
@@ -113,4 +123,3 @@ Next implementation work:
 | `checkMesh` fails | Mesh invalid or boundary mismatch | Run fails with `checkMesh.log` artifact |
 | Solver diverges | Bad case defaults or mesh quality | Run fails with `solver.log` and zipped case |
 | No visualization | `foamToVTK` or PyVista missing | Still return logs/case zip; PNGs are optional |
-

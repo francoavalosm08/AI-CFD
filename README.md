@@ -6,7 +6,7 @@ Automating CFD with a local browser app for external-aerodynamics runs through O
 
 - Upload `.msh`, `.stl`, `.step`, `.stp`, or `.zip` files.
 - Ask for external-aero specifications: velocity, angle of attack, units, scale, mesh quality, and runtime.
-- Build a deterministic simulation spec and run fake mode today, with local OpenFOAM planned as the next real-solver path.
+- Build a deterministic simulation spec and run fake mode or the local OpenFOAM case-generation path.
 - Show an HTML dashboard with status, run logs, PyVista images, residual/plot files, and downloads.
 
 ## Project Handoff And Docs
@@ -45,17 +45,25 @@ Open the app at `http://localhost:5173`. Backend API runs at `http://localhost:8
 
 Local backend run data is written under `.local-data/` (gitignored).
 
-## Planned No-API Local OpenFOAM Mode
+## No-API Local OpenFOAM Mode
 
-The next V1 real-solver milestone is a deterministic local OpenFOAM runner. It should not require `.env` or `OPENAI_API_KEY`.
+The V1 real-solver path now has a deterministic local OpenFOAM runner. It does not require `.env` or `OPENAI_API_KEY`.
 
-Target commands after implementation:
+Dry-run mode is the first acceptance path: it writes an OpenFOAM case folder, command manifest, and downloadable zip without executing solver binaries.
+
+Commands:
 
 ```powershell
 .\scripts\dev-openfoam-wsl.ps1 -CheckOnly
-.\scripts\dev-openfoam-backend.ps1
+.\scripts\dev-openfoam-backend.ps1 -DryRun
 .\scripts\dev-frontend.ps1
 .\scripts\smoke-local-openfoam.ps1 -DryRun
+```
+
+After WSL2 Ubuntu and OpenFOAM are installed, start the backend without `-DryRun` and use a real external-aero `.msh`:
+
+```powershell
+.\scripts\dev-openfoam-backend.ps1
 .\scripts\smoke-local-openfoam.ps1
 ```
 
@@ -117,7 +125,7 @@ If you only need backend progress right now:
 
 ## Release Check (Single Command)
 
-Run one command for backend tests, frontend tests, fake-mode smoke flow, and browser E2E:
+Run one command for backend tests, frontend tests, fake-mode smoke flow, browser E2E, and local OpenFOAM dry-run smoke:
 
 ```powershell
 .\scripts\release-check.ps1
@@ -182,7 +190,8 @@ The Vite dev server proxies `/api` to `http://127.0.0.1:8000` to avoid Windows l
 | `smoke-fake-run.ps1` cannot reach `/api/health` | Backend not running | Start backend with `.\scripts\dev-backend.ps1` |
 | Smoke test fails on upload/run | Backend dependencies incomplete | Rerun `.\scripts\local-verify.ps1` and check error output |
 | STEP/STL conversion fails | `gmsh` missing | Install Gmsh or use `.msh` upload |
-| Planned local OpenFOAM preflight fails | WSL2/OpenFOAM missing | Install WSL2 Ubuntu and OpenFOAM, then rerun the planned preflight |
+| Local OpenFOAM preflight fails | WSL2/OpenFOAM missing | Install WSL2 Ubuntu and OpenFOAM, then rerun `.\scripts\dev-openfoam-wsl.ps1 -CheckOnly` |
+| `smoke-local-openfoam.ps1 -DryRun` reports wrong mode | Backend is still in fake mode | Start backend with `.\scripts\dev-openfoam-backend.ps1 -DryRun` |
 | `dev-foamagent.ps1` fails immediately | Docker Desktop stopped | Start Docker Desktop and rerun `-CheckOnly` |
 | `dev-real-backend.ps1` fails before startup | Foam-Agent MCP not reachable | Run `dev-foamagent.ps1`, then `smoke-mcp-health.ps1` |
 | Real run fails before planning | Missing API key or shared runs path | Check `.env` and `data/foamagent-runs` |

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { artifactUrl, defaultSpec, formatStatus } from "../src/client";
+import { artifactUrl, defaultSpec, formatRunnerMode, formatStatus } from "../src/client";
 
 describe("client helpers", () => {
   it("builds artifact URLs from artifact ids", () => {
@@ -27,5 +27,11 @@ describe("client helpers", () => {
   it("formats run statuses for display", () => {
     expect(formatStatus("queued")).toBe("Queued");
     expect(formatStatus("visualizing")).toBe("Visualizing");
+  });
+
+  it("formats runner modes for display", () => {
+    expect(formatRunnerMode("fake")).toBe("Fake");
+    expect(formatRunnerMode("local_openfoam")).toBe("Local OpenFOAM");
+    expect(formatRunnerMode("mcp")).toBe("Foam-Agent MCP");
   });
 });

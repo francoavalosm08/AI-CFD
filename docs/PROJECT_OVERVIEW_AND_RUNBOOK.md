@@ -8,7 +8,7 @@ AI CFD Workbench is a local browser-based CFD workflow tool. The intended user f
 2. Drop in a geometry or mesh file.
 3. Enter external-aerodynamics specifications.
 4. Let the backend prepare a deterministic solver prompt/spec.
-5. Run either a fake deterministic simulation path or the planned local OpenFOAM path.
+5. Run either a fake deterministic simulation path or the local OpenFOAM path.
 6. View status, logs, images, residual data, and downloadable artifacts in the browser.
 
 The current app is focused on **external aerodynamics**. Heat transfer, vibration, Ansys, and aeroelastic coupling are intentionally deferred.
@@ -24,9 +24,9 @@ Browser UI (React + Vite)
 FastAPI backend
   http://localhost:8000
         |
-        | fake mode, planned local OpenFOAM mode, or optional MCP mode
+        | fake mode, local OpenFOAM mode, or optional MCP mode
         v
-Fake runner today; planned local OpenFOAM runner through WSL2 Ubuntu; optional Foam-Agent MCP
+Fake runner; local OpenFOAM runner through WSL2 Ubuntu/native shell; optional Foam-Agent MCP
 ```
 
 ## What Has Been Built
@@ -107,6 +107,12 @@ Main files:
 - `backend/app/prompt.py`
   - deterministic Foam-Agent prompt builder
 
+- `backend/app/openfoam/`
+  - deterministic OpenFOAM case builder
+  - WSL path/preflight helpers
+  - local command runner with dry-run mode
+  - residual/log artifact helpers
+
 - `backend/app/jobs.py`
   - run execution orchestration
   - preprocessing
@@ -159,6 +165,16 @@ Current workflow scripts:
 
 - `scripts/release-check.ps1`
   - release-readiness wrapper around `local-verify.ps1`
+
+- `scripts/dev-openfoam-wsl.ps1`
+  - checks WSL2 Ubuntu and OpenFOAM command availability
+
+- `scripts/dev-openfoam-backend.ps1`
+  - starts FastAPI in `CFD_RUNNER_MODE=local_openfoam`
+  - supports `-DryRun` for no-solver case-generation acceptance
+
+- `scripts/smoke-local-openfoam.ps1`
+  - uploads a `.msh`, creates a local OpenFOAM run, and verifies command/case artifacts
 
 - `scripts/dev-foamagent.ps1`
   - starts or preflights Foam-Agent Docker on port `7860`
@@ -245,9 +261,9 @@ What it does:
 - writes fake `pressure.png`
 - marks the run completed
 
-### Planned Local OpenFOAM Mode
+### Local OpenFOAM Mode
 
-Local OpenFOAM mode is now the Phase 3 target.
+Local OpenFOAM mode is now the Phase 3 primary path.
 
 Purpose:
 
@@ -265,9 +281,26 @@ OPENFOAM_RUNTIME=wsl
 
 Status:
 
-- planned in `docs/PHASE_3_REAL_FOAMAGENT_OPENFOAM_PLAN.md`
-- target runbook in `docs/LOCAL_OPENFOAM_NO_API_RUNBOOK.md`
-- should not require `.env` or `OPENAI_API_KEY`
+- deterministic case builder, command manifest, dry-run runner, parsers, and job wiring are implemented
+- WSL preflight and local smoke scripts are implemented
+- dry-run acceptance does not require WSL/OpenFOAM
+- real solver acceptance still requires WSL2 Ubuntu and OpenFOAM installed
+- does not require `.env` or `OPENAI_API_KEY`
+
+Dry-run startup:
+
+```powershell
+.\scripts\dev-openfoam-backend.ps1 -DryRun
+.\scripts\smoke-local-openfoam.ps1 -DryRun
+```
+
+Real local startup after OpenFOAM installation:
+
+```powershell
+.\scripts\dev-openfoam-wsl.ps1 -CheckOnly
+.\scripts\dev-openfoam-backend.ps1
+.\scripts\smoke-local-openfoam.ps1 -SampleMeshPath <valid-external-aero-volume.msh>
+```
 
 ### Optional MCP Foam-Agent Mode
 
@@ -324,7 +357,8 @@ Expected response:
 ```json
 {
   "status": "ok",
-  "foam_agent_mode": "fake"
+  "foam_agent_mode": "fake",
+  "runner_mode": "fake"
 }
 ```
 
@@ -361,6 +395,7 @@ This runs:
 - frontend Vitest suite
 - fake-mode API smoke flow
 - Playwright browser E2E workflow
+- local OpenFOAM dry-run smoke flow
 
 Expected final line:
 
@@ -400,10 +435,10 @@ As of May 22, 2026:
 
 - Gmsh installed through `winget`.
 - `gmsh -version` reports `4.13.1`.
-- `scripts/release-check.ps1` passes with 28 backend tests, 4 frontend tests, fake-mode smoke, and Playwright E2E.
+- `scripts/release-check.ps1` passes with backend tests, frontend tests, fake-mode smoke, Playwright E2E, and local OpenFOAM dry-run smoke.
 - `npm --prefix frontend run build` passes.
 - Optional Foam-Agent acceptance currently stops because Docker Desktop is not running and `.env` is missing.
-- Primary Phase 3 real solver acceptance is now pending the local OpenFOAM runner implementation.
+- Local OpenFOAM case generation/dry-run implementation is in place; real solver acceptance is pending WSL2/OpenFOAM runtime setup and a valid external-aero `.msh`.
 
 ## API Surface
 
@@ -611,7 +646,7 @@ Goal:
 
 - local OpenFOAM real runs without runtime API keys.
 
-Remaining:
+Implemented:
 
 - add WSL2/OpenFOAM preflight
 - add deterministic case generation
@@ -619,6 +654,12 @@ Remaining:
 - add local OpenFOAM runner integration
 - add no-API smoke scripts
 - keep optional MCP mode passing but off the primary path
+
+Remaining:
+
+- run WSL/OpenFOAM preflight on a machine with the runtime installed
+- run a real `.msh` external-aero case through OpenFOAM
+- improve boundary detection and force coefficient setup after the first real case
 
 ### Phase 4: Runtime Reproducibility
 

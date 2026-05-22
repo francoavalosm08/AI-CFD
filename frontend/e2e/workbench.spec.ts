@@ -14,7 +14,7 @@ test('runs fake-mode external-aero workflow from upload to dashboard artifacts',
 
   await page.getByLabel('Velocity').fill('31.5');
   await page.getByLabel('Angle of attack').fill('5');
-  await page.getByRole('button', { name: /Start Foam-Agent run/i }).click();
+  await page.getByRole('button', { name: /Start CFD run/i }).click();
 
   await expect(page.getByText('Completed').first()).toBeVisible();
   await expect(page.getByText('pressure.png')).toBeVisible();

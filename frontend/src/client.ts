@@ -1,4 +1,4 @@
-import type { Artifact, RunRecord, RunStatus, SimulationSpec, UploadRecord } from "./types";
+import type { Artifact, HealthResponse, RunRecord, RunStatus, SimulationSpec, UploadRecord } from "./types";
 
 export function artifactUrl(artifactId: string): string {
   return `/api/artifacts/${artifactId}`;
@@ -25,6 +25,22 @@ export function formatStatus(status: RunStatus): string {
     .split("_")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
+}
+
+export function formatRunnerMode(mode: string | null | undefined): string {
+  if (!mode) return "Checking";
+  if (mode === "fake") return "Fake";
+  if (mode === "local_openfoam") return "Local OpenFOAM";
+  if (mode === "mcp") return "Foam-Agent MCP";
+  return mode
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+export async function fetchHealth(): Promise<HealthResponse> {
+  const response = await fetch("/api/health");
+  return parseJsonResponse(response);
 }
 
 export async function uploadGeometry(file: File): Promise<UploadRecord> {
