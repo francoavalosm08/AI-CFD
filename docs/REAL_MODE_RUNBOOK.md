@@ -1,6 +1,8 @@
-# Real Mode Runbook
+# Optional Foam-Agent MCP Runbook
 
-Use this path when you want real Foam-Agent/OpenFOAM execution instead of fake-mode smoke runs.
+Use this optional path when you want Foam-Agent/OpenFOAM execution instead of fake-mode smoke runs. This path requires a model provider API key. It is no longer the primary V1 real-solver plan.
+
+For the no-API-key local OpenFOAM direction, read `LOCAL_OPENFOAM_NO_API_RUNBOOK.md`.
 
 ## Startup Sequence
 

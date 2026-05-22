@@ -8,7 +8,7 @@ AI CFD Workbench is a local browser-based CFD workflow tool. The intended user f
 2. Drop in a geometry or mesh file.
 3. Enter external-aerodynamics specifications.
 4. Let the backend prepare a deterministic solver prompt/spec.
-5. Run either a fake deterministic simulation path or a real Foam-Agent/OpenFOAM path.
+5. Run either a fake deterministic simulation path or the planned local OpenFOAM path.
 6. View status, logs, images, residual data, and downloadable artifacts in the browser.
 
 The current app is focused on **external aerodynamics**. Heat transfer, vibration, Ansys, and aeroelastic coupling are intentionally deferred.
@@ -24,10 +24,9 @@ Browser UI (React + Vite)
 FastAPI backend
   http://localhost:8000
         |
-        | fake mode or MCP mode
+        | fake mode, planned local OpenFOAM mode, or optional MCP mode
         v
-Fake runner today, Foam-Agent/OpenFOAM Docker in Phase 3
-  http://localhost:7860/mcp
+Fake runner today; planned local OpenFOAM runner through WSL2 Ubuntu; optional Foam-Agent MCP
 ```
 
 ## What Has Been Built
@@ -191,7 +190,7 @@ Location: `docs/`
   - local workflow hardening plan
 
 - `docs/PHASE_3_REAL_FOAMAGENT_OPENFOAM_PLAN.md`
-  - real Foam-Agent/OpenFOAM implementation plan
+  - local OpenFOAM no-API implementation plan
 
 - `docs/PROJECT_OVERVIEW_AND_RUNBOOK.md`
   - this file
@@ -246,30 +245,46 @@ What it does:
 - writes fake `pressure.png`
 - marks the run completed
 
-### MCP Real Mode
+### Planned Local OpenFOAM Mode
 
-Real mode is the Phase 3 target.
+Local OpenFOAM mode is now the Phase 3 target.
 
 Purpose:
 
-- call Foam-Agent MCP
-- generate real OpenFOAM cases
+- generate real OpenFOAM cases from deterministic templates
 - run real OpenFOAM solvers
 - generate real logs and visualizations
+- avoid runtime API keys
 
 Environment:
 
 ```powershell
-FOAM_AGENT_MODE=mcp
-FOAM_AGENT_URL=http://127.0.0.1:7860/mcp
+CFD_RUNNER_MODE=local_openfoam
+OPENFOAM_RUNTIME=wsl
 ```
+
+Status:
+
+- planned in `docs/PHASE_3_REAL_FOAMAGENT_OPENFOAM_PLAN.md`
+- target runbook in `docs/LOCAL_OPENFOAM_NO_API_RUNBOOK.md`
+- should not require `.env` or `OPENAI_API_KEY`
+
+### Optional MCP Foam-Agent Mode
+
+This mode was implemented during the earlier Phase 3 path. It remains optional.
+
+Purpose:
+
+- call Foam-Agent MCP
+- let Foam-Agent/LLM plan and write cases
+- mirror logs/provenance/artifacts
 
 Status:
 
 - backend MCP client, preflight, provenance, and artifact mirroring are implemented
 - Docker/Foam-Agent helper scripts are implemented
 - fake-mode regression remains the default automated release path
-- real acceptance still requires Docker Desktop running and a real `.env` `OPENAI_API_KEY`
+- optional real acceptance still requires Docker Desktop running and a real `.env` `OPENAI_API_KEY`
 
 ## How To Run The App Locally
 
@@ -387,9 +402,8 @@ As of May 22, 2026:
 - `gmsh -version` reports `4.13.1`.
 - `scripts/release-check.ps1` passes with 28 backend tests, 4 frontend tests, fake-mode smoke, and Playwright E2E.
 - `npm --prefix frontend run build` passes.
-- `scripts/dev-foamagent.ps1 -CheckOnly` currently stops because Docker Desktop is not running.
-- `scripts/dev-real-backend.ps1 -SkipDependencyInstall` currently stops because `.env` is missing.
-- Phase 3 real solver acceptance is pending a real `.env` API key and Docker Desktop.
+- Optional Foam-Agent acceptance currently stops because Docker Desktop is not running and `.env` is missing.
+- Primary Phase 3 real solver acceptance is now pending the local OpenFOAM runner implementation.
 
 ## API Surface
 
@@ -547,7 +561,7 @@ Fix:
 - helper scripts now refresh process PATH from Windows Machine/User environment.
 - `dev-check` reports `Gmsh: 4.13.1`.
 
-### Docker daemon may be unavailable
+### Optional Docker daemon may be unavailable
 
 Current state:
 
@@ -556,14 +570,15 @@ Current state:
 
 Mitigation:
 
-- Phase 3 plan adds Docker preflight scripts before any real solver run.
+- Optional Foam-Agent/MCP scripts include Docker preflight checks.
 
 ## Operational Notes
 
 - Use fake mode for UI/backend development unless actively testing real OpenFOAM.
 - Use `.msh` for the most reliable workflow.
 - Use STEP/STL only when Gmsh is available and geometry is clean enough to mesh.
-- Real Foam-Agent/OpenFOAM runs will require Docker Desktop and a valid model API key.
+- Planned local OpenFOAM runs should not require an API key.
+- Optional Foam-Agent/OpenFOAM runs require Docker Desktop and a valid model API key.
 - Do not commit `.env`, `data/`, `.local-data/`, `node_modules/`, or build outputs.
 
 ## Roadmap
@@ -588,28 +603,28 @@ Result:
 - Gmsh installed and detected
 - browser E2E added
 
-### Phase 3: Real Solver Integration
+### Phase 3: Local OpenFOAM Real Solver Integration
 
-In progress. Most code and local scripts are implemented; final acceptance is blocked on environment setup.
+In progress. The plan has pivoted away from required Foam-Agent/API-key execution.
 
 Goal:
 
-- Docker-hosted Foam-Agent/OpenFOAM real runs through MCP.
+- local OpenFOAM real runs without runtime API keys.
 
 Remaining:
 
-- create `.env` from `.env.example` with a real `OPENAI_API_KEY`
-- start Docker Desktop
-- run `scripts/dev-foamagent.ps1 -CheckOnly`
-- run `scripts/smoke-mcp-health.ps1`
-- run `scripts/smoke-real-run.ps1`
-- fix any MCP schema or solver issues discovered by the real run
+- add WSL2/OpenFOAM preflight
+- add deterministic case generation
+- add command manifest and dry-run mode
+- add local OpenFOAM runner integration
+- add no-API smoke scripts
+- keep optional MCP mode passing but off the primary path
 
-### Phase 4: Docker Reproducibility
+### Phase 4: Runtime Reproducibility
 
 Goal:
 
-- standardized Docker/Compose integration path once real mode is stable.
+- standardized WSL/OpenFOAM setup checks and optional Docker/Compose parity once local real mode is stable.
 
 ### Phase 5: Release Readiness
 

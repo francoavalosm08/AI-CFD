@@ -32,32 +32,42 @@ This is a simplified roadmap for non-software stakeholders, while keeping the ke
 
 **Keywords:** `smoke test`, `PowerShell`, `FastAPI`, `Vite`, `fake mode`, `local onboarding`.
 
-## Phase 3: Real Solver Integration (MCP/OpenFOAM) (In Progress)
+## Phase 3: Local OpenFOAM Real Solver Integration (No API Key) (In Progress)
 
 **Goal:** Move from fake execution to real CFD runs.
 
-**What is implemented now:**
+**Decision update:**
+- The primary V1 real-solver path should not require `OPENAI_API_KEY`.
+- Use deterministic OpenFOAM case templates and local command execution.
+- Use WSL2 Ubuntu as the first Windows OpenFOAM target.
+- Keep Foam-Agent/MCP as optional advanced mode, not the default V1 path.
+
+**What is implemented now from the old MCP path:**
 - MCP client hardening, provenance JSON, and artifact mirroring tests in `backend/tests/`.
 - Real-mode preflight checks for API key, MCP reachability, and shared run directories.
 - Local scripts: `dev-foamagent.ps1`, `dev-real-backend.ps1`, `smoke-mcp-health.ps1`, `smoke-real-run.ps1`.
 - Runbook: `docs/REAL_MODE_RUNBOOK.md`.
 
-**Still required for completion:**
-- A successful opt-in `smoke-real-run.ps1` against Docker-hosted Foam-Agent on a developer machine.
-- Any MCP schema adjustments discovered during the first real `.msh` acceptance run.
+**Still required for the new primary path:**
+- Local runner settings and scripts.
+- WSL2/OpenFOAM preflight.
+- Deterministic `.msh` case builder.
+- OpenFOAM command manifest and dry-run mode.
+- Log/residual/artifact parsing.
+- A successful no-API local OpenFOAM smoke run.
 
-**Keywords:** `MCP`, `OpenFOAM`, `Foam-Agent`, `real run`, `artifacts`.
+**Keywords:** `OpenFOAM`, `WSL2`, `no API key`, `deterministic templates`, `real run`, `artifacts`.
 
-## Phase 4: Docker for Testing and Reproducibility
+## Phase 4: Runtime Reproducibility
 
-**Goal:** Use Docker at the right time for controlled testing and shared environments.
+**Goal:** Make the local OpenFOAM workflow reproducible across machines.
 
 **What it should do:**
-- Reconfirm `docker-compose` path for integration testing.
-- Standardize environment parity across machines.
-- Keep local non-Docker workflow for fast iteration, and Docker for repeatable verification.
+- Standardize WSL2/OpenFOAM setup checks.
+- Decide whether Docker stays as optional parity/testing infrastructure.
+- Keep local non-Docker workflow for fast iteration.
 
-**Keywords:** `Docker`, `docker-compose`, `integration testing`, `environment parity`.
+**Keywords:** `WSL2`, `OpenFOAM`, `integration testing`, `environment parity`.
 
 ## Phase 5: Release Readiness
 

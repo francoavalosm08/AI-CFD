@@ -1,17 +1,17 @@
 # AI CFD Workbench
 
-Automating CFD with a local browser app for external-aerodynamics runs through Foam-Agent and OpenFOAM.
+Automating CFD with a local browser app for external-aerodynamics runs through OpenFOAM.
 
 ## What V1 Does
 
 - Upload `.msh`, `.stl`, `.step`, `.stp`, or `.zip` files.
 - Ask for external-aero specifications: velocity, angle of attack, units, scale, mesh quality, and runtime.
-- Build a deterministic Foam-Agent prompt and run the Foam-Agent MCP workflow.
+- Build a deterministic simulation spec and run fake mode today, with local OpenFOAM planned as the next real-solver path.
 - Show an HTML dashboard with status, run logs, PyVista images, residual/plot files, and downloads.
 
 ## Project Handoff And Docs
 
-Fresh LLM/coding-agent pickup instructions are in `AGENTS.md`. The docs index is in `docs/README.md`, with the current next milestone in `docs/PHASE_3_REAL_FOAMAGENT_OPENFOAM_PLAN.md`.
+Fresh LLM/coding-agent pickup instructions are in `AGENTS.md`. The docs index is in `docs/README.md`, with the current next milestone in `docs/PHASE_3_REAL_FOAMAGENT_OPENFOAM_PLAN.md`. That plan now targets local OpenFOAM without a runtime API key.
 
 ## Local Non-Docker Development (Windows + Fake Mode)
 
@@ -45,9 +45,25 @@ Open the app at `http://localhost:5173`. Backend API runs at `http://localhost:8
 
 Local backend run data is written under `.local-data/` (gitignored).
 
-## Real Foam-Agent/OpenFOAM Mode (Local Docker + MCP)
+## Planned No-API Local OpenFOAM Mode
 
-Use this when you want real solver execution. Fake mode remains the default fast regression path.
+The next V1 real-solver milestone is a deterministic local OpenFOAM runner. It should not require `.env` or `OPENAI_API_KEY`.
+
+Target commands after implementation:
+
+```powershell
+.\scripts\dev-openfoam-wsl.ps1 -CheckOnly
+.\scripts\dev-openfoam-backend.ps1
+.\scripts\dev-frontend.ps1
+.\scripts\smoke-local-openfoam.ps1 -DryRun
+.\scripts\smoke-local-openfoam.ps1
+```
+
+See `docs/PHASE_3_REAL_FOAMAGENT_OPENFOAM_PLAN.md` and `docs/LOCAL_OPENFOAM_NO_API_RUNBOOK.md`.
+
+## Optional Foam-Agent/OpenFOAM Mode (Local Docker + MCP)
+
+This path exists from the earlier Phase 3 work. It is now optional because it requires a model provider API key. Fake mode remains the default fast regression path, and local OpenFOAM is the next primary real-solver path.
 
 1. Copy `.env.example` to `.env` and set `OPENAI_API_KEY`.
 2. Start Foam-Agent Docker:
@@ -75,7 +91,7 @@ Use this when you want real solver execution. Fake mode remains the default fast
 .\scripts\smoke-real-run.ps1
 ```
 
-See `docs/REAL_MODE_RUNBOOK.md` and `docs/PHASE_3_REAL_FOAMAGENT_OPENFOAM_PLAN.md` for troubleshooting and acceptance details.
+See `docs/REAL_MODE_RUNBOOK.md` for optional Foam-Agent/MCP troubleshooting and acceptance details.
 
 ## First Day Setup (Windows)
 
@@ -107,9 +123,11 @@ Run one command for backend tests, frontend tests, fake-mode smoke flow, and bro
 .\scripts\release-check.ps1
 ```
 
-## Run With Docker
+## Optional Docker/Compose Validation
 
-1. Copy `.env.example` to `.env` and set `OPENAI_API_KEY`.
+This is secondary infrastructure from the Foam-Agent/MCP path. It is not the primary no-API OpenFOAM plan.
+
+1. Copy `.env.example` to `.env` and set `OPENAI_API_KEY` only if using Foam-Agent/MCP.
 2. Start Docker Desktop.
 3. Run:
 
@@ -164,6 +182,7 @@ The Vite dev server proxies `/api` to `http://127.0.0.1:8000` to avoid Windows l
 | `smoke-fake-run.ps1` cannot reach `/api/health` | Backend not running | Start backend with `.\scripts\dev-backend.ps1` |
 | Smoke test fails on upload/run | Backend dependencies incomplete | Rerun `.\scripts\local-verify.ps1` and check error output |
 | STEP/STL conversion fails | `gmsh` missing | Install Gmsh or use `.msh` upload |
+| Planned local OpenFOAM preflight fails | WSL2/OpenFOAM missing | Install WSL2 Ubuntu and OpenFOAM, then rerun the planned preflight |
 | `dev-foamagent.ps1` fails immediately | Docker Desktop stopped | Start Docker Desktop and rerun `-CheckOnly` |
 | `dev-real-backend.ps1` fails before startup | Foam-Agent MCP not reachable | Run `dev-foamagent.ps1`, then `smoke-mcp-health.ps1` |
 | Real run fails before planning | Missing API key or shared runs path | Check `.env` and `data/foamagent-runs` |
@@ -172,6 +191,6 @@ The Vite dev server proxies `/api` to `http://127.0.0.1:8000` to avoid Windows l
 ## Notes
 
 - `.msh` is the most reliable V1 input. STEP/STL conversion depends on Gmsh.
-- Foam-Agent MCP writes OpenFOAM cases inside its own container; Compose mounts that `runs` directory into `./data/foamagent-runs` so the app can mirror visualization/log artifacts into each dashboard run.
+- Optional Foam-Agent MCP writes OpenFOAM cases inside its own container; Compose mounts that `runs` directory into `./data/foamagent-runs` so the app can mirror visualization/log artifacts into each dashboard run.
 - V1 intentionally excludes heat transfer, vibration, Ansys, and aeroelastic coupling.
 

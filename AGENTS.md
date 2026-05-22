@@ -10,10 +10,22 @@ The repository already contains a working V1 local web app for an AI CFD workflo
 - Python FastAPI backend in `backend/`.
 - Local fake Foam-Agent mode for reliable development and testing.
 - SQLite/local filesystem state under `.local-data/` during local development.
-- Docker files for the intended Foam-Agent/OpenFOAM integration path.
+- Optional Docker/Foam-Agent files from the previous integration path.
 - Planning and project docs under `docs/`.
 
-Do not restart from a blank plan. The immediate next engineering milestone is to **finish Phase 3 acceptance**: run `scripts/smoke-real-run.ps1` against Docker-hosted Foam-Agent with a valid `OPENAI_API_KEY`, then fix any MCP schema or solver issues that appear. After that, move to Phase 4 (Docker parity) and Phase 5 (release readiness). See `docs/PHASE_3_REAL_FOAMAGENT_OPENFOAM_PLAN.md` and `docs/REAL_MODE_RUNBOOK.md`.
+Do not restart from a blank plan. The immediate next engineering milestone is to **pivot Phase 3 to the no-runtime-API-key local OpenFOAM runner** described in `docs/PHASE_3_REAL_FOAMAGENT_OPENFOAM_PLAN.md` and `docs/LOCAL_OPENFOAM_NO_API_RUNBOOK.md`. The Foam-Agent/MCP work remains in the repo as an optional advanced path, but it is no longer the primary V1 acceptance target.
+
+## Current Product Direction (Updated 2026-05-22)
+
+The user does not want the V1 real solver path to require `OPENAI_API_KEY`. The new primary direction is:
+
+- Browser app stays the same.
+- Backend generates deterministic OpenFOAM cases from local templates.
+- OpenFOAM runs locally, with WSL2 Ubuntu as the first Windows target.
+- Each run writes a command manifest so a human or IDE agent can inspect/run steps manually.
+- Foam-Agent MCP stays optional and should not block V1.
+
+Do not make `.env` or API keys mandatory for the next real-solver milestone.
 
 ## Recent Work (Phase 3 — 2026-05-22)
 
@@ -60,13 +72,22 @@ A prior agent session implemented most of Phase 3 code and docs. Fake mode was p
 - `.\scripts\dev-foamagent.ps1 -CheckOnly` -> blocked before real acceptance because Docker Desktop daemon is not running
 - `.\scripts\dev-real-backend.ps1 -SkipDependencyInstall` -> blocked before startup because `.env` is missing
 
-### Not done yet (Phase 3 acceptance gate)
+### Not done yet (old Foam-Agent acceptance gate)
 
 - Create `.env` from `.env.example` with a real `OPENAI_API_KEY`
 - Start Docker Desktop, then run `.\scripts\dev-foamagent.ps1 -CheckOnly`
 - `.\scripts\dev-foamagent.ps1` + `.\scripts\smoke-real-run.ps1` on a machine with Docker Desktop and real `OPENAI_API_KEY`
 - Any MCP tool schema fixes discovered during first real run
 - Full `.\scripts\release-check.ps1` after any follow-up changes; last fake-mode regression passed on 2026-05-22
+
+This old gate is now optional. The next primary gate is the no-API local OpenFOAM runner:
+
+```powershell
+.\scripts\dev-openfoam-wsl.ps1 -CheckOnly
+.\scripts\dev-openfoam-backend.ps1
+.\scripts\smoke-local-openfoam.ps1 -DryRun
+.\scripts\smoke-local-openfoam.ps1
+```
 
 ## User Goal
 
@@ -96,8 +117,9 @@ Start with these files:
 - `docs/PROJECT_OVERVIEW_AND_RUNBOOK.md`: full architecture and operating runbook.
 - `docs/PHASES_SUMMARY.md`: what was completed and planned by phase.
 - `docs/PHASE_2_PLANNING_DRAFT.md`: prior milestone planning detail.
-- `docs/PHASE_3_REAL_FOAMAGENT_OPENFOAM_PLAN.md`: next milestone plan for real Foam-Agent/OpenFOAM.
-- `docs/REAL_MODE_RUNBOOK.md`: real-mode startup, health checks, troubleshooting.
+- `docs/PHASE_3_REAL_FOAMAGENT_OPENFOAM_PLAN.md`: next milestone plan, now rewritten around local OpenFOAM without API keys.
+- `docs/LOCAL_OPENFOAM_NO_API_RUNBOOK.md`: no-API local OpenFOAM target runbook.
+- `docs/REAL_MODE_RUNBOOK.md`: optional Foam-Agent/MCP startup, health checks, troubleshooting.
 
 ## Verification Commands
 
@@ -128,7 +150,7 @@ Fake-mode smoke test against a running backend:
 .\scripts\smoke-fake-run.ps1
 ```
 
-Real-mode (opt-in; requires Docker + `.env` API key):
+Optional Foam-Agent/MCP mode (requires Docker + `.env` API key):
 
 ```powershell
 .\scripts\dev-foamagent.ps1
@@ -161,16 +183,17 @@ The verification script starts temporary backend/frontend servers and writes the
 
 ## Next Milestone
 
-**Close Phase 3**, then proceed to Phases 4–5 per `docs/PHASES_SUMMARY.md`.
+**Implement the no-API local OpenFOAM runner**, then proceed to Phases 4–5 per `docs/PHASES_SUMMARY.md`.
 
 Phase 3 remaining steps:
 
-1. Copy `.env.example` → `.env` and set `OPENAI_API_KEY`.
-2. Run `.\scripts\dev-foamagent.ps1 -CheckOnly`, then start Foam-Agent without `-CheckOnly`.
-3. Run `.\scripts\dev-real-backend.ps1` and `.\scripts\smoke-mcp-health.ps1`.
-4. Run opt-in `.\scripts\smoke-real-run.ps1` with `samples/wing.msh`.
-5. If MCP tools or paths fail, adjust `backend/app/foam_agent.py` and re-run; inspect `data/runs/<run_id>/foamagent-*.json`.
-6. Run `.\scripts\release-check.ps1` to confirm fake-mode regression still passes.
+1. Add local runner settings while preserving fake and optional MCP modes.
+2. Add WSL2/OpenFOAM preflight and Windows-to-WSL path mapping.
+3. Add deterministic OpenFOAM case templates for `.msh` external aero.
+4. Add command manifest, dry-run, and real command runner.
+5. Add parsers/artifact collection for logs, residuals, VTK, and case zip.
+6. Add no-API smoke scripts and update UI copy away from Foam-Agent-only language.
+7. Run `.\scripts\release-check.ps1` to confirm fake-mode regression still passes.
 
 Keep the API and UI stable unless the real run proves they need to change.
 
@@ -178,9 +201,9 @@ Keep the API and UI stable unless the real run proves they need to change.
 
 Watch these areas:
 
-- Docker Desktop may not be running, even if the Docker CLI exists.
-- Foam-Agent MCP tool names or request schemas may differ from assumptions.
-- Windows path handling can break container volume mapping; keep app paths and agent-visible paths separate.
+- WSL2/OpenFOAM may not be installed yet.
+- Windows path handling can break WSL command execution; keep app paths and WSL-visible paths separate.
+- Boundary names from `.msh` imports may not match deterministic template assumptions.
 - STEP/STL meshing is best-effort; `.msh` should remain the reliable V1 input.
 - Long-running CFD jobs need cancellation and timeout behavior to avoid stuck UI state.
 - Browser E2E failures can be caused by stale dev servers on ports `8000` or `5173`; check listeners before debugging app code.
@@ -192,7 +215,7 @@ Watch these areas:
 - Add tests around behavior before or with implementation changes.
 - Prefer focused changes over broad refactors.
 - Use the docs as source of intent, but trust code/tests for exact behavior.
-- If changing Docker or Foam-Agent integration, update `README.md`, `docs/PROJECT_OVERVIEW_AND_RUNBOOK.md`, and `docs/PHASE_3_REAL_FOAMAGENT_OPENFOAM_PLAN.md` as needed.
+- If changing runner architecture, update `README.md`, `docs/PROJECT_OVERVIEW_AND_RUNBOOK.md`, `docs/PHASE_3_REAL_FOAMAGENT_OPENFOAM_PLAN.md`, and `docs/LOCAL_OPENFOAM_NO_API_RUNBOOK.md` as needed.
 
 ## Git State Expectations
 
