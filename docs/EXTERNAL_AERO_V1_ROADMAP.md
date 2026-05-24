@@ -107,6 +107,7 @@ Status: implemented for the current Windows/WSL target.
 Commands:
 
 ```powershell
+.\scripts\runtime-report.ps1
 .\scripts\dev-openfoam-wsl.ps1 -CheckOnly
 .\scripts\dev-openfoam-backend.ps1 -DryRun
 .\scripts\smoke-local-openfoam.ps1 -DryRun
@@ -129,6 +130,8 @@ The bad-mesh smoke enforces clean failure before solver execution.
 
 `dev-openfoam-wsl.ps1 -CheckOnly` also reports whether Windows `gmsh` is available, because NACA generation and STEP/STL conversion use the Windows Gmsh executable while OpenFOAM itself runs inside WSL.
 
+`runtime-report.ps1` writes `.local-data/runtime-report.json` with Windows, Git, Python, Node, npm, Gmsh, WSL distro, OpenFOAM version, and required OpenFOAM command availability. Use this file to compare machines before debugging solver behavior.
+
 ## Phase 5: Usable Local V1 Release
 
 Status: usable local V1 candidate; rerun all gates after each solver-path change.
@@ -141,6 +144,14 @@ Release quality gates:
 - `release-check.ps1` passes
 - real NACA validation passes
 - bad mesh validation fails clearly
+
+One-command local V1 acceptance:
+
+```powershell
+.\scripts\release-v1-local.ps1
+```
+
+That script runs `runtime-report.ps1`, `release-check.ps1`, `dev-openfoam-wsl.ps1 -CheckOnly`, `smoke-naca-openfoam.ps1`, and `smoke-bad-mesh-validation.ps1` against a temporary local OpenFOAM backend.
 
 GitHub Actions now runs the fast release gate on `push` and `pull_request`: frontend production build, backend tests, frontend tests, fake-mode smoke, Playwright E2E, and local OpenFOAM dry-run smoke. Real NACA and bad-mesh OpenFOAM validation remain local/manual gates because they depend on this machine's WSL/OpenFOAM runtime.
 

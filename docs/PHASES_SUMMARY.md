@@ -89,6 +89,7 @@ This is a simplified roadmap for non-software stakeholders, while keeping the ke
 **What is implemented now:**
 - WSL2/OpenFOAM setup checks through `scripts/dev-openfoam-wsl.ps1 -CheckOnly`.
 - Windows Gmsh visibility check in the same preflight.
+- Machine/runtime snapshot through `scripts\runtime-report.ps1`, which writes `.local-data/runtime-report.json`.
 - Dry-run, real NACA, and bad-mesh smoke scripts.
 - Docker/Foam-Agent remains optional parity/advanced infrastructure, not a V1 requirement.
 - Local non-Docker workflow stays the primary iteration path.
@@ -102,10 +103,11 @@ This is a simplified roadmap for non-software stakeholders, while keeping the ke
 **What is implemented locally:**
 - Backend pytest, frontend Vitest, Playwright E2E, fake smoke, dry-run OpenFOAM smoke, real NACA smoke, and bad-mesh smoke quality gates.
 - Release checklist through `scripts/release-check.ps1` plus the real-solver acceptance scripts.
+- Full local V1 acceptance through `scripts\release-v1-local.ps1`, which runs the runtime report, fast release check, WSL/OpenFOAM preflight, real NACA validation, and bad-mesh validation.
 - GitHub Actions CI for the frontend build and fast release gate on `push` and `pull_request`.
 - Operational runbooks and known limits in `README.md`, `docs/LOCAL_OPENFOAM_NO_API_RUNBOOK.md`, `docs/EXTERNAL_AERO_V1_ROADMAP.md`, and `AGENTS.md`.
 
 **Remaining before wider release:**
-- Keep real OpenFOAM smoke tests local/manual unless the CI runner has WSL/OpenFOAM or a Linux OpenFOAM image.
+- Real OpenFOAM smoke tests remain local through `scripts\release-v1-local.ps1` unless the CI runner is later provisioned with WSL/OpenFOAM or a Linux OpenFOAM image.
 
 **Keywords:** `CI`, `quality gates`, `release checklist`, `runbook`.

@@ -417,6 +417,15 @@ Expected final line:
 Release check passed.
 ```
 
+### Full local V1 acceptance
+
+```powershell
+.\scripts\runtime-report.ps1
+.\scripts\release-v1-local.ps1
+```
+
+This runs the runtime report, fast release check, WSL/OpenFOAM preflight, real NACA validation, and bad-mesh validation. Use this gate before calling the local Windows/WSL V1 path releasable.
+
 ### Frontend production build
 
 ```powershell
@@ -713,11 +722,19 @@ Remaining:
 
 Goal:
 
-- standardized WSL/OpenFOAM setup checks, Windows Gmsh visibility checks, and optional Docker/Compose parity once local real mode is stable.
+- standardized WSL/OpenFOAM setup checks, Windows Gmsh visibility checks, machine runtime reporting, and optional Docker/Compose parity once local real mode is stable.
+
+Status:
+
+- implemented locally through `scripts\runtime-report.ps1`, `scripts\dev-openfoam-wsl.ps1 -CheckOnly`, and the OpenFOAM dry-run/real smoke gates.
 
 ### Phase 5: Release Readiness
 
 Goal:
 
-- CI, release checklist, operational runbook, known-limits documentation. GitHub Actions now runs the frontend build and fast `release-check.ps1` gate; local quality gates also include NACA smoke and bad-mesh smoke.
+- CI, release checklist, operational runbook, known-limits documentation. GitHub Actions now runs the frontend build and fast `release-check.ps1` gate; local V1 acceptance is `scripts\release-v1-local.ps1`.
+
+Status:
+
+- implemented locally for the Windows/WSL target. Real OpenFOAM gates remain local until CI has an OpenFOAM-capable runner.
 

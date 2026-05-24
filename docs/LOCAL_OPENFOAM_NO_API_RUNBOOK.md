@@ -30,6 +30,12 @@ The no-API path generates case files using local templates and known V1 assumpti
 
 ## Commands
 
+Capture a reproducibility report for this machine:
+
+```powershell
+.\scripts\runtime-report.ps1
+```
+
 Dry-run workflow, no WSL/OpenFOAM required:
 
 ```powershell
@@ -60,6 +66,14 @@ NACA 4412 validation and bad-mesh validation:
 .\scripts\smoke-naca-openfoam.ps1 -TimeoutSeconds 1200
 .\scripts\smoke-bad-mesh-validation.ps1
 ```
+
+Full local V1 release acceptance:
+
+```powershell
+.\scripts\release-v1-local.ps1
+```
+
+This runs the runtime report, fast release check, WSL/OpenFOAM preflight, real NACA validation, and bad-mesh validation against a temporary local OpenFOAM backend.
 
 CI note: GitHub Actions runs the frontend production build and fast `release-check.ps1` gate, including fake-mode smoke, browser E2E, and local OpenFOAM dry-run smoke. Real NACA and bad-mesh validation stay local/manual unless a CI runner is provisioned with OpenFOAM.
 
@@ -168,6 +182,8 @@ The repo currently has:
 - production `.msh` guidance in `docs/GMSH_AIRFOIL_2D_TEMPLATE.md`
 - clearer STEP/STL conversion failures for missing Gmsh, missing volume meshes, missing physical names, and geometry failures
 - browser image inspection for generated pressure, velocity, residual, and force coefficient PNGs
+- runtime reproducibility reporting with `scripts\runtime-report.ps1`
+- one-command local V1 release acceptance with `scripts\release-v1-local.ps1`
 
 Latest NACA 4412 validation result on this machine:
 

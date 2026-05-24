@@ -126,13 +126,20 @@ A prior agent session implemented most of Phase 3 code and docs. Fake mode was p
 
 ### Verified in current session (2026-05-24)
 
-- `py -m pytest backend` -> **79 passed**
+- `py -m pytest backend` -> **82 passed**
+- `.\scripts\runtime-report.ps1` -> **PASS**, wrote `.local-data\runtime-report.json`
 - `.\scripts\release-check.ps1` -> **PASS**
-  - backend pytest: **79 passed**
+  - backend pytest: **82 passed**
   - frontend Vitest: **7 passed**
   - fake-mode smoke: **PASS**
   - Playwright E2E: **PASS**
   - local OpenFOAM dry-run smoke: **PASS**
+- `.\scripts\release-v1-local.ps1` -> **PASS**
+  - runtime report: **PASS**
+  - fast release check: **PASS**
+  - WSL/OpenFOAM preflight: **PASS**
+  - real NACA smoke: **PASS** (run `c9ebdf0f-66c6-4e23-be26-7805272a2b82`)
+  - bad-mesh validation: **PASS** (run `90df0f94-9cfa-406d-80fe-030a88cde89c`)
 - `.\scripts\dev-openfoam-wsl.ps1 -CheckOnly` -> **PASS**, including Windows Gmsh `4.13.1`
 - `.\scripts\generate-naca4412.ps1 -OutputDir .local-data\naca4412-path-check -SkipMesh` -> **PASS**
 - `.\scripts\smoke-naca-openfoam.ps1 -ApiBaseUrl http://127.0.0.1:8012 -TimeoutSeconds 1200 -PollIntervalSeconds 5` -> **PASS** (run `1e971ca6-5df7-4eff-bf77-315f3e2f51b4`)
@@ -150,14 +157,10 @@ A prior agent session implemented most of Phase 3 code and docs. Fake mode was p
 This old gate is now optional. The primary no-API local OpenFOAM gate is:
 
 ```powershell
-.\scripts\dev-openfoam-wsl.ps1 -CheckOnly
-.\scripts\dev-openfoam-backend.ps1 -DryRun
-.\scripts\smoke-local-openfoam.ps1 -DryRun
-.\scripts\dev-openfoam-backend.ps1
-.\scripts\smoke-local-openfoam.ps1
-.\scripts\smoke-naca-openfoam.ps1
-.\scripts\smoke-bad-mesh-validation.ps1
+.\scripts\release-v1-local.ps1
 ```
+
+Use `.\scripts\runtime-report.ps1` first when comparing a new machine against this development machine.
 
 For future real non-dry-run smokes, generate the committed sample mesh with `gmsh samples\external_box.geo -3 -format msh2 -o .local-data\external_box.msh`, then pass `-SampleMeshPath .local-data\external_box.msh`. For user meshes, make sure the `.msh` has valid external-aero volume/boundary patches before using it as acceptance evidence.
 
@@ -241,7 +244,7 @@ Optional Foam-Agent/MCP mode (requires Docker + `.env` API key):
 The latest verified baseline passed:
 
 - Python/backend prerequisite check, including Gmsh 4.13.1.
-- Backend pytest suite: **79 tests** (includes MCP, preflight, mirroring, local OpenFOAM, mesh conversion, mesh validation, force coefficients, status persistence, non-blocking archive packaging, and CI workflow coverage).
+- Backend pytest suite: **82 tests** (includes MCP, preflight, mirroring, local OpenFOAM, mesh conversion, mesh validation, force coefficients, status persistence, non-blocking archive packaging, Phase 4/5 release contracts, release-script cleanup, and CI workflow coverage).
 - Frontend Vitest suite: 7 tests.
 - Fake-mode backend smoke flow (`local-verify.ps1 -Scope backend`).
 - Playwright browser E2E workflow (via full `release-check.ps1`).
@@ -262,7 +265,7 @@ The verification script starts temporary backend/frontend servers and writes the
 
 ## Next Milestone
 
-**Harden local OpenFOAM for real user aircraft/vehicle meshes**, then proceed to Phases 4–5 per `docs/PHASES_SUMMARY.md`.
+**Broaden validation with real user aircraft/vehicle `.msh` files**, using `docs/GMSH_AIRFOIL_2D_TEMPLATE.md` and `.\scripts\release-v1-local.ps1` as the acceptance baseline.
 
 Phase 3 implemented steps:
 
@@ -274,12 +277,11 @@ Phase 3 implemented steps:
 6. Add no-API smoke scripts and update UI copy away from Foam-Agent-only language.
 7. Run `.\scripts\release-check.ps1` to confirm fake-mode regression still passes.
 
-Phase 3 sample acceptance is complete on this machine. Remaining hardening steps:
+Phase 3 sample acceptance plus Phase 4/5 local release gating are complete on this machine. Remaining product hardening steps:
 
-1. Run fresh real NACA and bad-mesh smoke validation after solver-path changes.
-2. Test real user-provided `.msh` files against `docs/GMSH_AIRFOIL_2D_TEMPLATE.md`.
-3. Add richer vtk.js/PyVista-style visualization after more real user `.msh` cases prove the static outputs reliable.
-4. Keep `.\scripts\release-check.ps1` passing after every follow-up change.
+1. Test real user-provided `.msh` files against `docs/GMSH_AIRFOIL_2D_TEMPLATE.md`.
+2. Add richer vtk.js/PyVista-style visualization after more real user `.msh` cases prove the static outputs reliable.
+3. Keep `.\scripts\release-v1-local.ps1` passing after every solver-path or release-path change.
 
 Keep the API and UI stable unless the real run proves they need to change.
 

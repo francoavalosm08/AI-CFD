@@ -69,6 +69,15 @@ function Test-PortAvailable {
     }
 }
 
+function Stop-PortProcess {
+    param([Parameter(Mandatory = $true)][int]$Port)
+
+    $connections = Get-NetTCPConnection -LocalPort $Port -ErrorAction SilentlyContinue | Where-Object { $_.OwningProcess -ne 0 }
+    foreach ($connection in $connections) {
+        Stop-Process -Id $connection.OwningProcess -Force -ErrorAction SilentlyContinue
+    }
+}
+
 function Get-Health {
     param([Parameter(Mandatory = $true)][string]$BaseUrl)
 
@@ -285,11 +294,13 @@ try {
 } finally {
     if ($startedFrontend -and $frontendJob) {
         Stop-Job -Job $frontendJob -ErrorAction SilentlyContinue | Out-Null
+        Stop-PortProcess -Port $frontendPort
         Receive-Job -Job $frontendJob -Keep -ErrorAction SilentlyContinue | Out-Null
         Remove-Job -Job $frontendJob -ErrorAction SilentlyContinue | Out-Null
     }
     if ($startedBackend -and $backendJob) {
         Stop-Job -Job $backendJob -ErrorAction SilentlyContinue | Out-Null
+        Stop-PortProcess -Port $apiPort
         Receive-Job -Job $backendJob -Keep -ErrorAction SilentlyContinue | Out-Null
         Remove-Job -Job $backendJob -ErrorAction SilentlyContinue | Out-Null
     }
