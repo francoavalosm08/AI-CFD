@@ -9,6 +9,12 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+function Update-ProcessPathFromEnvironment {
+    $machinePath = [System.Environment]::GetEnvironmentVariable("Path", "Machine")
+    $userPath = [System.Environment]::GetEnvironmentVariable("Path", "User")
+    $env:Path = (@($machinePath, $userPath) | Where-Object { $_ }) -join ";"
+}
+
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repoRoot = (Resolve-Path (Join-Path $scriptRoot "..")).Path
 $backendPath = Join-Path $repoRoot "backend"
@@ -18,6 +24,8 @@ $resolvedOutput = if ([System.IO.Path]::IsPathRooted($OutputDir)) { $OutputDir }
 if (-not (Test-Path $venvPython)) {
     throw "Missing venv Python at $venvPython. Run scripts/dev-check.ps1 first."
 }
+
+Update-ProcessPathFromEnvironment
 
 New-Item -ItemType Directory -Force -Path $resolvedOutput | Out-Null
 

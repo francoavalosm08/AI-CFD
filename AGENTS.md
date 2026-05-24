@@ -49,7 +49,7 @@ gmsh samples\external_box.geo -3 -format msh2 -o .local-data\external_box.msh
 - The run reached `completed` and produced real OpenFOAM logs, residuals, VTK/case outputs, `openfoam-commands.json`, and `openfoam-case.zip`.
 - Because this repo path contains a space (`AI CFD`), the WSL runner stages real execution in `/tmp/ai-cfd-workbench/<run_id>/case` and copies the case back into `.local-data/runs/<run_id>/case` before artifact packaging.
 
-## Latest NACA 4412 Airfoil Acceptance (2026-05-22)
+## Latest NACA 4412 Airfoil Acceptance (2026-05-24)
 
 The NACA 4412 validation path is now implemented for local OpenFOAM mode:
 
@@ -61,7 +61,7 @@ The NACA 4412 validation path is now implemented for local OpenFOAM mode:
 - Boundary conditions are airfoil-specific: no-slip/wall functions on `airfoil`, `empty` on `frontAndBack`, fixed freestream velocity at `inlet`, pressure outlet behavior at `outlet`, and slip/zero-gradient behavior at `farfield`.
 - Run metadata records `chord_length_m=1.0`, `kinematic_viscosity_m2_s=1.5e-5`, `reynolds_number=1666666.666667`, parsed `checkMesh` summary, and final OpenFOAM-generated `Cl/Cd/Cm` when available.
 - Airfoil cases enable OpenFOAM `forceCoeffs` on the `airfoil` patch.
-- The latest real local run used `25 m/s`, `2 deg` angle of attack, `1 m` chord, and reached `completed` as run `d52632a4-4b1f-4a74-8d3c-d7f4729a20fc`.
+- The latest real local run used `25 m/s`, `2 deg` angle of attack, `1 m` chord, and reached `completed` as run `1e971ca6-5df7-4eff-bf77-315f3e2f51b4`.
 - OpenFOAM `checkMesh` passed with `57,292` cells.
 - Final OpenFOAM-derived coefficients from that run: `Cl=0.4591685`, `Cd=0.02907224`, `Cm=0.09620507`.
 - Required artifacts include: `mesh-validation.json`, `checkMesh.log`, `solver.log`, `residuals.csv`, `forceCoeffs.dat`, `forceCoeffs.csv`, `force-coefficients.png`, VTK output, `openfoam-case.zip`, and `openfoam-report.html`.
@@ -72,6 +72,8 @@ The NACA 4412 validation path is now implemented for local OpenFOAM mode:
   - `force-coefficients.png` from OpenFOAM `forceCoeffs.csv`
 - The dashboard can open generated PNG artifacts in a larger browser preview dialog and still links to the raw image artifact.
 - The OpenFOAM runner exports VTK with `foamToVTK -ascii`; binary VTK is skipped by the lightweight parser instead of blocking a run.
+- `GET /api/runs/{run_id}` now persists visible progress statuses during long runs; the latest NACA smoke showed `preprocessing`, `meshing`, `running`, and `completed`.
+- OpenFOAM case zipping now runs off the FastAPI event loop so health/status requests remain responsive during large artifact packaging.
 
 Do not accept future NACA validation runs as successful if `checkMesh` fails, OpenFOAM reports fewer than `40,000` cells, or `forceCoeffs.dat` / `forceCoeffs.csv` / `force-coefficients.png` / final `Cl/Cd/Cm` are missing.
 
@@ -122,13 +124,28 @@ A prior agent session implemented most of Phase 3 code and docs. Fake mode was p
 - `.\scripts\dev-foamagent.ps1 -CheckOnly` -> blocked before real acceptance because Docker Desktop daemon is not running
 - `.\scripts\dev-real-backend.ps1 -SkipDependencyInstall` -> blocked before startup because `.env` is missing
 
+### Verified in current session (2026-05-24)
+
+- `py -m pytest backend` -> **79 passed**
+- `.\scripts\release-check.ps1` -> **PASS**
+  - backend pytest: **79 passed**
+  - frontend Vitest: **7 passed**
+  - fake-mode smoke: **PASS**
+  - Playwright E2E: **PASS**
+  - local OpenFOAM dry-run smoke: **PASS**
+- `.\scripts\dev-openfoam-wsl.ps1 -CheckOnly` -> **PASS**, including Windows Gmsh `4.13.1`
+- `.\scripts\generate-naca4412.ps1 -OutputDir .local-data\naca4412-path-check -SkipMesh` -> **PASS**
+- `.\scripts\smoke-naca-openfoam.ps1 -ApiBaseUrl http://127.0.0.1:8012 -TimeoutSeconds 1200 -PollIntervalSeconds 5` -> **PASS** (run `1e971ca6-5df7-4eff-bf77-315f3e2f51b4`)
+- `.\scripts\smoke-bad-mesh-validation.ps1 -ApiBaseUrl http://127.0.0.1:8013` -> **PASS** (run `f5c0370b-98a5-4432-8b0d-48d1a066c114`)
+- Temporary copy cleanup confirmed: `C:\dev` contains only `AI-CFD`; the old OneDrive desktop `AI CFD` folder remains unused for this work.
+
 ### Not done yet (old Foam-Agent acceptance gate)
 
 - Create `.env` from `.env.example` with a real `OPENAI_API_KEY`
 - Start Docker Desktop, then run `.\scripts\dev-foamagent.ps1 -CheckOnly`
 - `.\scripts\dev-foamagent.ps1` + `.\scripts\smoke-real-run.ps1` on a machine with Docker Desktop and real `OPENAI_API_KEY`
 - Any MCP tool schema fixes discovered during first real run
-- Full `.\scripts\release-check.ps1` after any follow-up changes; last fake-mode regression passed on 2026-05-22
+- Full `.\scripts\release-check.ps1` after any follow-up changes; latest full release check passed on 2026-05-24
 
 This old gate is now optional. The primary no-API local OpenFOAM gate is:
 
@@ -224,7 +241,7 @@ Optional Foam-Agent/MCP mode (requires Docker + `.env` API key):
 The latest verified baseline passed:
 
 - Python/backend prerequisite check, including Gmsh 4.13.1.
-- Backend pytest suite: **77 tests** (includes MCP, preflight, mirroring, local OpenFOAM, mesh conversion, mesh validation, force coefficients, and CI workflow coverage).
+- Backend pytest suite: **79 tests** (includes MCP, preflight, mirroring, local OpenFOAM, mesh conversion, mesh validation, force coefficients, status persistence, non-blocking archive packaging, and CI workflow coverage).
 - Frontend Vitest suite: 7 tests.
 - Fake-mode backend smoke flow (`local-verify.ps1 -Scope backend`).
 - Playwright browser E2E workflow (via full `release-check.ps1`).

@@ -8,11 +8,19 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+function Update-ProcessPathFromEnvironment {
+    $machinePath = [System.Environment]::GetEnvironmentVariable("Path", "Machine")
+    $userPath = [System.Environment]::GetEnvironmentVariable("Path", "User")
+    $env:Path = (@($machinePath, $userPath) | Where-Object { $_ }) -join ";"
+}
+
 function Fail {
     param([Parameter(Mandatory = $true)][string]$Message)
     Write-Host "FAIL: $Message" -ForegroundColor Red
     exit 1
 }
+
+Update-ProcessPathFromEnvironment
 
 if (-not (Get-Command "wsl.exe" -ErrorAction SilentlyContinue)) {
     Fail "wsl.exe was not found. Install WSL2 and Ubuntu before running local OpenFOAM."

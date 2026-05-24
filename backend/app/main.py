@@ -72,6 +72,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             agent_data_root=settings.agent_data_root,
             emit=emit,
             gmsh_command=settings.gmsh_command,
+            save_run=repo.save_run,
         )
 
     async def execute_run(run_id: str) -> None:

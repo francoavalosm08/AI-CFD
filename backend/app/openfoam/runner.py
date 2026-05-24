@@ -130,7 +130,7 @@ class LocalOpenFoamRunner:
             (output / "openfoam-dry-run.log").write_text(
                 "Dry run only. No OpenFOAM commands were executed.\n", encoding="utf-8"
             )
-            archive = zip_case(case_dir, output / "openfoam-case.zip")
+            archive = await asyncio.to_thread(zip_case, case_dir, output / "openfoam-case.zip")
             return {
                 "mode": "local_openfoam",
                 "dry_run": True,
@@ -184,7 +184,7 @@ class LocalOpenFoamRunner:
         force_rows = _collect_force_coefficients(case_dir, output)
         final_coefficients = final_force_coefficients(force_rows)
         visualizations = write_visualization_previews(output)
-        archive = zip_case(case_dir, output / "openfoam-case.zip")
+        archive = await asyncio.to_thread(zip_case, case_dir, output / "openfoam-case.zip")
         chord_length = manifest.get("chord_length_m") or self.spec.length_scale
         reynolds_number = manifest.get("reynolds_number")
         report = write_run_report(

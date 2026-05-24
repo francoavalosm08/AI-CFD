@@ -614,6 +614,30 @@ Fix:
 - helper scripts now refresh process PATH from Windows Machine/User environment.
 - `dev-check` reports `Gmsh: 4.13.1`.
 
+### Long OpenFOAM runs only showed queued status
+
+Problem:
+
+- Real NACA/OpenFOAM validation emitted lifecycle events, but `GET /api/runs/{run_id}` stayed `queued` until the run completed.
+- The frontend could not reliably show solver progress from the run detail endpoint.
+
+Fix:
+
+- `RunExecutor` now persists intermediate `RunStatus` changes while a run is executing.
+- Runner-emitted statuses such as `planning`, `meshing`, `running`, and `visualizing` are saved without changing the `/api/*` response schema.
+
+### Large OpenFOAM case zips briefly blocked the API
+
+Problem:
+
+- Real NACA/OpenFOAM output packaging created a large `openfoam-case.zip`.
+- Synchronous zipping briefly blocked the FastAPI event loop, so health/status requests could time out during post-processing.
+
+Fix:
+
+- OpenFOAM case archive creation now runs on a worker thread.
+- This keeps the API responsive while preserving the same artifact name and download behavior.
+
 ### Optional Docker daemon may be unavailable
 
 Current state:

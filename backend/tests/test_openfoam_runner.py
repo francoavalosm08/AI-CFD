@@ -1,4 +1,6 @@
+import asyncio
 import json
+import threading
 from pathlib import Path
 
 import pytest
@@ -140,6 +142,48 @@ async def test_runner_allows_optional_export_failure(tmp_path: Path) -> None:
     assert result["mode"] == "local_openfoam"
     assert result["commands"][-1]["required"] is False
     assert (tmp_path / "run" / "solver.log").exists()
+
+
+@pytest.mark.asyncio
+async def test_runner_does_not_block_event_loop_while_zipping_case(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    mesh = tmp_path / "wing.msh"
+    mesh.write_text("$MeshFormat\n2.2 0 8\n")
+    executor = RecordingExecutor(
+        [
+            CommandResult(command="gmshToFoam input.msh", returncode=0, stdout="mesh imported", stderr=""),
+            CommandResult(command="checkMesh -allGeometry -allTopology", returncode=0, stdout="Mesh OK", stderr=""),
+            CommandResult(command="simpleFoam", returncode=0, stdout="Solving for Ux\nFinal residual = 1e-5", stderr=""),
+            CommandResult(command="foamToVTK", returncode=0, stdout="vtk", stderr=""),
+        ]
+    )
+    runner = LocalOpenFoamRunner(spec=_spec(), dry_run=False, command_executor=executor)
+    loop = asyncio.get_running_loop()
+    zip_started = asyncio.Event()
+    release_zip = threading.Event()
+
+    def slow_zip_case(_case_dir: Path, archive_path: Path) -> Path:
+        loop.call_soon_threadsafe(zip_started.set)
+        release_zip.wait(timeout=1)
+        archive_path.write_bytes(b"zip")
+        return archive_path
+
+    monkeypatch.setattr("app.openfoam.runner.zip_case", slow_zip_case)
+
+    task = asyncio.create_task(
+        runner.run_external_aero(
+            prompt="local openfoam run",
+            mesh_path=str(mesh),
+            output_dir=str(tmp_path / "run"),
+            emit=lambda _status, _message: None,
+        )
+    )
+
+    await asyncio.wait_for(zip_started.wait(), timeout=0.5)
+    assert not task.done()
+    release_zip.set()
+    result = await asyncio.wait_for(task, timeout=2)
+
+    assert result["case_archive"].endswith("openfoam-case.zip")
 
 
 @pytest.mark.asyncio

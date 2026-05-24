@@ -11,6 +11,7 @@ from app.schemas import RunRecord, RunStatus, UploadRecord
 
 
 EventEmitter = Callable[[str, str, str], None]
+RunPersister = Callable[[RunRecord], None]
 
 
 class FoamAgentRunner:
@@ -34,12 +35,14 @@ class RunExecutor:
         agent_data_root: str,
         emit: EventEmitter,
         gmsh_command: str = "gmsh",
+        save_run: RunPersister | None = None,
     ) -> None:
         self.foam_agent = foam_agent
         self.app_data_root = app_data_root
         self.agent_data_root = PurePosixPath(agent_data_root)
         self.emit_event = emit
         self.gmsh_command = gmsh_command
+        self.save_run = save_run
 
     async def execute(self, run: RunRecord, upload: UploadRecord) -> RunRecord:
         run_dir = self.app_data_root / "runs" / run.id
@@ -47,7 +50,7 @@ class RunExecutor:
         run.started_at = datetime.now(timezone.utc)
 
         async def emit(status: str, message: str) -> None:
-            self.emit_event(run.id, status, message)
+            self._set_status_from_event(run, status, message)
 
         try:
             self._set_status(run, RunStatus.preprocessing, "Preparing uploaded geometry")
@@ -71,18 +74,18 @@ class RunExecutor:
             )
             run.summary = result
             run.artifacts = discover_artifacts(run.id, run_dir)
-            self._set_status(run, RunStatus.completed, "Run completed")
             run.completed_at = datetime.now(timezone.utc)
+            self._set_status(run, RunStatus.completed, "Run completed")
         except MeshConversionError as exc:
             run.error = str(exc)
             run.artifacts = discover_artifacts(run.id, run_dir)
-            self._set_status(run, RunStatus.failed, run.error)
             run.completed_at = datetime.now(timezone.utc)
+            self._set_status(run, RunStatus.failed, run.error)
         except Exception as exc:
             run.error = f"Simulation run failed: {exc}"
             run.artifacts = discover_artifacts(run.id, run_dir)
-            self._set_status(run, RunStatus.failed, run.error)
             run.completed_at = datetime.now(timezone.utc)
+            self._set_status(run, RunStatus.failed, run.error)
         return run
 
     async def _prepare_mesh(self, upload: UploadRecord, run_dir: Path) -> Path | None:
@@ -108,3 +111,13 @@ class RunExecutor:
         run.status = status
         run.updated_at = datetime.now(timezone.utc)
         self.emit_event(run.id, status.value, message)
+        if self.save_run is not None:
+            self.save_run(run)
+
+    def _set_status_from_event(self, run: RunRecord, status: str, message: str) -> None:
+        try:
+            run_status = RunStatus(status)
+        except ValueError:
+            self.emit_event(run.id, status, message)
+            return
+        self._set_status(run, run_status, message)

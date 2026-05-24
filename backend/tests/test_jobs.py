@@ -59,6 +59,43 @@ async def test_run_executor_moves_run_to_completed_and_discovers_artifacts(tmp_p
 
 
 @pytest.mark.asyncio
+async def test_run_executor_persists_intermediate_status_updates(tmp_path: Path):
+    upload = UploadRecord(
+        id="upload-1",
+        original_name="wing.msh",
+        stored_path=str(tmp_path / "uploads" / "wing.msh"),
+        kind="gmsh_mesh",
+    )
+    Path(upload.stored_path).parent.mkdir()
+    Path(upload.stored_path).write_text("$MeshFormat\n2.2 0 8\n")
+    run = RunRecord(
+        id="run-1",
+        upload_id=upload.id,
+        status=RunStatus.queued,
+        spec=SimulationSpec(upload_id=upload.id, units="m", length_scale=1, velocity=20, angle_of_attack=3),
+    )
+    persisted_statuses: list[RunStatus] = []
+    executor = RunExecutor(
+        foam_agent=FakeFoamAgent(),
+        app_data_root=tmp_path,
+        agent_data_root="/workspace/data",
+        emit=lambda *_: None,
+        save_run=lambda current: persisted_statuses.append(current.status),
+    )
+
+    result = await executor.execute(run, upload)
+
+    assert result.status == RunStatus.completed
+    assert persisted_statuses == [
+        RunStatus.preprocessing,
+        RunStatus.planning,
+        RunStatus.running,
+        RunStatus.visualizing,
+        RunStatus.completed,
+    ]
+
+
+@pytest.mark.asyncio
 async def test_run_executor_fails_stl_with_clear_mesh_conversion_error(tmp_path: Path):
     upload = UploadRecord(
         id="upload-1",
