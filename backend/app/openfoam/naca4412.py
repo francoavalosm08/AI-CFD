@@ -3,10 +3,20 @@ from __future__ import annotations
 import math
 
 
-def naca4412_points(count: int = 241, chord: float = 1.0) -> list[tuple[float, float, float]]:
-    m = 0.04
-    p = 0.4
-    t = 0.12
+def _parse_naca4(code: str) -> tuple[float, float, float]:
+    normalized = code.strip()
+    if len(normalized) != 4 or not normalized.isdigit():
+        raise ValueError("NACA 4-digit airfoil code must contain exactly 4 digits")
+    return int(normalized[0]) / 100, int(normalized[1]) / 10, int(normalized[2:]) / 100
+
+
+def naca4_points(
+    code: str = "4412",
+    *,
+    count: int = 241,
+    chord: float = 1.0,
+) -> list[tuple[float, float, float]]:
+    m, p, t = _parse_naca4(code)
     half = (count + 1) // 2
     xs = [(1 - math.cos(math.pi * i / (half - 1))) / 2 for i in range(half)]
     upper: list[tuple[float, float, float]] = []
@@ -19,7 +29,10 @@ def naca4412_points(count: int = 241, chord: float = 1.0) -> list[tuple[float, f
             + 0.2843 * x**3
             - 0.1015 * x**4
         )
-        if x < p:
+        if m == 0 or p == 0:
+            yc = 0.0
+            dyc = 0.0
+        elif x < p:
             yc = m / (p * p) * (2 * p * x - x * x)
             dyc = 2 * m / (p * p) * (p - x)
         else:
@@ -31,8 +44,17 @@ def naca4412_points(count: int = 241, chord: float = 1.0) -> list[tuple[float, f
     return list(reversed(upper)) + lower[1:]
 
 
-def build_naca4412_geo(*, chord: float = 1.0, thickness: float = 0.01) -> str:
-    points = naca4412_points(chord=chord)
+def naca4412_points(count: int = 241, chord: float = 1.0) -> list[tuple[float, float, float]]:
+    return naca4_points("4412", count=count, chord=chord)
+
+
+def build_naca4_geo(
+    *,
+    code: str = "4412",
+    chord: float = 1.0,
+    thickness: float = 0.01,
+) -> str:
+    points = naca4_points(code, chord=chord)
     geo: list[str] = [
         'SetFactory("OpenCASCADE");',
         "Mesh.MshFileVersion = 2.2;",
@@ -84,9 +106,20 @@ def build_naca4412_geo(*, chord: float = 1.0, thickness: float = 0.01) -> str:
     return "\n".join(geo) + "\n"
 
 
-def build_naca4412_stl(*, chord: float = 1.0, thickness: float = 0.01) -> str:
-    points = naca4412_points(chord=chord)
-    lines = ["solid naca4412"]
+def build_naca4412_geo(*, chord: float = 1.0, thickness: float = 0.01) -> str:
+    return build_naca4_geo(code="4412", chord=chord, thickness=thickness)
+
+
+def build_naca4_stl(
+    *,
+    code: str = "4412",
+    chord: float = 1.0,
+    thickness: float = 0.01,
+) -> str:
+    normalized = code.strip()
+    points = naca4_points(normalized, chord=chord)
+    name = f"naca{normalized}"
+    lines = [f"solid {name}"]
     loop = points + [points[0]]
     for (x1, y1, _), (x2, y2, _) in zip(loop[:-1], loop[1:]):
         for tri in [
@@ -97,5 +130,9 @@ def build_naca4412_stl(*, chord: float = 1.0, thickness: float = 0.01) -> str:
             for x, y, z in tri:
                 lines.append(f"      vertex {x:.8f} {y:.8f} {z:.8f}")
             lines.extend(["    endloop", "  endfacet"])
-    lines.append("endsolid naca4412")
+    lines.append(f"endsolid {name}")
     return "\n".join(lines) + "\n"
+
+
+def build_naca4412_stl(*, chord: float = 1.0, thickness: float = 0.01) -> str:
+    return build_naca4_stl(code="4412", chord=chord, thickness=thickness)

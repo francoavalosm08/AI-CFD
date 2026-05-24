@@ -10,6 +10,9 @@ from app.openfoam.templates import foam_header, vector
 from app.schemas import SimulationSpec
 
 
+EXTERNAL_2D_CASE_TYPES = {"airfoil_2d", "external_2d_obstacle"}
+
+
 def build_openfoam_case(*, spec: SimulationSpec, mesh_path: Path, case_dir: Path) -> dict:
     case_dir.mkdir(parents=True, exist_ok=True)
     for child in ("0", "constant", "system"):
@@ -17,7 +20,7 @@ def build_openfoam_case(*, spec: SimulationSpec, mesh_path: Path, case_dir: Path
     shutil.copy2(mesh_path, case_dir / "input.msh")
 
     physical_names = read_msh_physical_names(mesh_path)
-    case_type = "airfoil_2d" if {"airfoil", "farfield", "frontAndBack"}.issubset(physical_names) else "generic_external"
+    case_type = _case_type_from_physical_names(physical_names)
     inlet_velocity = _inlet_velocity(spec.velocity, spec.angle_of_attack)
     files = {
         "0/U": _u_file(inlet_velocity, case_type),
@@ -48,7 +51,11 @@ def build_openfoam_case(*, spec: SimulationSpec, mesh_path: Path, case_dir: Path
         "angle_of_attack": spec.angle_of_attack,
         "chord_length_m": 1.0 if case_type == "airfoil_2d" else None,
         "kinematic_viscosity_m2_s": 1.5e-05,
-        "reynolds_number": round(spec.velocity * 1.0 / 1.5e-05, 6) if case_type == "airfoil_2d" else None,
+        "reynolds_number": (
+            round(spec.velocity * (1.0 if case_type == "airfoil_2d" else spec.length_scale) / 1.5e-05, 6)
+            if case_type in EXTERNAL_2D_CASE_TYPES
+            else None
+        ),
         "inlet_velocity": [round(value, 6) for value in inlet_velocity],
         "force_coefficients": force_coefficients,
         "files": sorted(["input.msh", *files.keys()]),
@@ -57,8 +64,8 @@ def build_openfoam_case(*, spec: SimulationSpec, mesh_path: Path, case_dir: Path
             "flow": "steady incompressible external aerodynamics",
             "solver": "simpleFoam",
             "boundary_names": (
-                "2D airfoil patches: inlet, outlet, farfield, airfoil, frontAndBack"
-                if case_type == "airfoil_2d"
+                "2D external aero patches: inlet, outlet, farfield, airfoil/obstacle, frontAndBack"
+                if case_type in EXTERNAL_2D_CASE_TYPES
                 else "generic inlet/outlet/wall placeholders; inspect imported mesh patches before real use"
             ),
         },
@@ -67,6 +74,14 @@ def build_openfoam_case(*, spec: SimulationSpec, mesh_path: Path, case_dir: Path
         json.dumps(manifest, indent=2), encoding="utf-8"
     )
     return manifest
+
+
+def _case_type_from_physical_names(physical_names: set[str]) -> str:
+    if {"airfoil", "farfield", "frontAndBack"}.issubset(physical_names):
+        return "airfoil_2d"
+    if {"obstacle", "farfield", "frontAndBack"}.issubset(physical_names):
+        return "external_2d_obstacle"
+    return "generic_external"
 
 
 def _inlet_velocity(speed: float, angle_degrees: float) -> tuple[float, float, float]:
@@ -89,7 +104,8 @@ def _rounded(value: float) -> float:
 
 
 def _u_file(inlet_velocity: tuple[float, float, float], case_type: str) -> str:
-    if case_type == "airfoil_2d":
+    if case_type in EXTERNAL_2D_CASE_TYPES:
+        wall_patch = _wall_patch(case_type)
         return f"""{foam_header("volVectorField", "U")}
 dimensions      [0 1 -1 0 0 0 0];
 internalField   uniform {vector(inlet_velocity)};
@@ -108,7 +124,7 @@ boundaryField
     {{
         type            slip;
     }}
-    airfoil
+    {wall_patch}
     {{
         type            noSlip;
     }}
@@ -145,14 +161,15 @@ boundaryField
 
 
 def _scalar_field(name: str, class_name: str, internal_value: str, dimensions: str, case_type: str) -> str:
-    if case_type == "airfoil_2d":
-        airfoil_type = "zeroGradient"
+    if case_type in EXTERNAL_2D_CASE_TYPES:
+        wall_patch = _wall_patch(case_type)
+        wall_type = "zeroGradient"
         if name == "nut":
-            airfoil_type = "nutkWallFunction"
+            wall_type = "nutkWallFunction"
         elif name == "omega":
-            airfoil_type = "omegaWallFunction"
+            wall_type = "omegaWallFunction"
         elif name == "k":
-            airfoil_type = "kqRWallFunction"
+            wall_type = "kqRWallFunction"
         return f"""{foam_header(class_name, name)}
 dimensions      {dimensions};
 internalField   uniform {internal_value};
@@ -171,9 +188,9 @@ boundaryField
     {{
         type            zeroGradient;
     }}
-    airfoil
+    {wall_patch}
     {{
-        type            {airfoil_type};
+        type            {wall_type};
         value           uniform {internal_value};
     }}
     frontAndBack
@@ -236,7 +253,7 @@ functions
     #include "forceCoeffs"
 }
 """
-        if case_type == "airfoil_2d"
+        if case_type in EXTERNAL_2D_CASE_TYPES
         else ""
     )
     return f"""{foam_header("dictionary", "controlDict")}
@@ -259,22 +276,28 @@ runTimeModifiable true;
 
 
 def _force_coefficients_config(spec: SimulationSpec, case_type: str) -> dict:
-    if case_type != "airfoil_2d":
+    if case_type not in EXTERNAL_2D_CASE_TYPES:
         return {"enabled": False}
     directions = force_coefficient_directions(spec.angle_of_attack)
+    patch = _wall_patch(case_type)
+    reference_length = 1.0 if case_type == "airfoil_2d" else spec.length_scale
     return {
         "enabled": True,
-        "patches": ["airfoil"],
+        "patches": [patch],
         "dragDir": list(directions["dragDir"]),
         "liftDir": list(directions["liftDir"]),
         "pitchAxis": list(directions["pitchAxis"]),
         "CofR": [0.25, 0.0, 0.0],
         "rhoInf": 1.0,
         "magUInf": spec.velocity,
-        "lRef": 1.0,
-        "Aref": 0.01,
+        "lRef": reference_length,
+        "Aref": reference_length * 0.01,
         "span_m": 0.01,
     }
+
+
+def _wall_patch(case_type: str) -> str:
+    return "airfoil" if case_type == "airfoil_2d" else "obstacle"
 
 
 def _force_coeffs_file(config: dict) -> str:
@@ -286,7 +309,7 @@ forceCoeffs1
     writeControl    timeStep;
     timeInterval    1;
     log             yes;
-    patches         (airfoil);
+    patches         ({config["patches"][0]});
     rho             rhoInf;
     rhoInf          {_foam_number(config["rhoInf"])};
     liftDir         {_foam_tuple(config["liftDir"])};

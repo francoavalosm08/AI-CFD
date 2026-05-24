@@ -77,6 +77,21 @@ The NACA 4412 validation path is now implemented for local OpenFOAM mode:
 
 Do not accept future NACA validation runs as successful if `checkMesh` fails, OpenFOAM reports fewer than `40,000` cells, or `forceCoeffs.dat` / `forceCoeffs.csv` / `force-coefficients.png` / final `Cl/Cd/Cm` are missing.
 
+## Latest Mesh Corpus / Validation Mesh Acceptance (2026-05-24)
+
+- `scripts\download-mesh-corpus.ps1` downloads three public Gmsh `.msh` files from John Burkardt / FSU into `.local-data\external-mesh-corpus\` and writes `manifest.json` with source URL, license note, SHA-256, format, counts, and solver-readiness classification.
+- The downloaded FSU files are valid Gmsh MSH fixtures, but they do not include `$PhysicalNames`, so they are intentionally classified as `format_only_not_solver_ready` instead of being forced through fake OpenFOAM boundary conditions.
+- `scripts\generate-validation-meshes.ps1` creates three working local OpenFOAM validation meshes under `.local-data\validation-meshes\`:
+  - `naca0012.msh` using the `airfoil_2d` contract.
+  - `cylinder.msh` using the new `external_2d_obstacle` contract.
+  - `box.msh` using the new `external_2d_obstacle` contract.
+- The `external_2d_obstacle` contract requires physical names: `inlet`, `outlet`, `farfield`, `obstacle`, `frontAndBack`, and `internal`.
+- Real local OpenFOAM smokes completed against the generated meshes on backend port `8014`:
+  - Cylinder run `ef80321b-7d1a-41a1-b44a-f87aa77549c3`: `checkMesh` passed, `4,348` cells, final OpenFOAM-derived `Cl=2.786664`, `Cd=3.491001`, `Cm=-0.6969827`.
+  - Box run `b9ca413a-a775-411e-9742-b8f18d988b46`: `checkMesh` passed, `4,456` cells, final OpenFOAM-derived `Cl=-153.1205`, `Cd=3585.132`, `Cm=75.39039`.
+  - NACA 0012 run `008a0d06-0c99-47cd-9988-513b52f9bb06`: `checkMesh` passed, `58,364` cells, final OpenFOAM-derived `Cl=-0.02131213`, `Cd=0.0132719`, `Cm=-0.005501089`.
+- Static PNG previews now use visible VTK values for pressure/velocity color scaling, include a color legend, and overlay the focused body points when available.
+
 ## Recent Work (Phase 3 — 2026-05-22)
 
 A prior agent session implemented most of Phase 3 code and docs. Fake mode was preserved; no API/UI contract changes.
@@ -126,10 +141,10 @@ A prior agent session implemented most of Phase 3 code and docs. Fake mode was p
 
 ### Verified in current session (2026-05-24)
 
-- `py -m pytest backend` -> **82 passed**
+- `py -m pytest backend` -> **100 passed**
 - `.\scripts\runtime-report.ps1` -> **PASS**, wrote `.local-data\runtime-report.json`
 - `.\scripts\release-check.ps1` -> **PASS**
-  - backend pytest: **82 passed**
+  - backend pytest: **100 passed**
   - frontend Vitest: **7 passed**
   - fake-mode smoke: **PASS**
   - Playwright E2E: **PASS**
@@ -138,8 +153,8 @@ A prior agent session implemented most of Phase 3 code and docs. Fake mode was p
   - runtime report: **PASS**
   - fast release check: **PASS**
   - WSL/OpenFOAM preflight: **PASS**
-  - real NACA smoke: **PASS** (run `c9ebdf0f-66c6-4e23-be26-7805272a2b82`)
-  - bad-mesh validation: **PASS** (run `90df0f94-9cfa-406d-80fe-030a88cde89c`)
+  - real NACA smoke: **PASS** (run `1d0ffe8e-eb4a-46df-b3ea-e679a8b2eede`)
+  - bad-mesh validation: **PASS** (run `35287a47-5901-40af-80d2-7a221511b7e6`)
 - `.\scripts\dev-openfoam-wsl.ps1 -CheckOnly` -> **PASS**, including Windows Gmsh `4.13.1`
 - `.\scripts\generate-naca4412.ps1 -OutputDir .local-data\naca4412-path-check -SkipMesh` -> **PASS**
 - `.\scripts\smoke-naca-openfoam.ps1 -ApiBaseUrl http://127.0.0.1:8012 -TimeoutSeconds 1200 -PollIntervalSeconds 5` -> **PASS** (run `1e971ca6-5df7-4eff-bf77-315f3e2f51b4`)
@@ -244,7 +259,7 @@ Optional Foam-Agent/MCP mode (requires Docker + `.env` API key):
 The latest verified baseline passed:
 
 - Python/backend prerequisite check, including Gmsh 4.13.1.
-- Backend pytest suite: **82 tests** (includes MCP, preflight, mirroring, local OpenFOAM, mesh conversion, mesh validation, force coefficients, status persistence, non-blocking archive packaging, Phase 4/5 release contracts, release-script cleanup, and CI workflow coverage).
+- Backend pytest suite: **100 tests** (includes MCP, preflight, mirroring, local OpenFOAM, mesh conversion, mesh validation, force coefficients, status persistence, non-blocking archive packaging, mesh corpus/generator coverage, Phase 4/5 release contracts, release-script cleanup, and CI workflow coverage).
 - Frontend Vitest suite: 7 tests.
 - Fake-mode backend smoke flow (`local-verify.ps1 -Scope backend`).
 - Playwright browser E2E workflow (via full `release-check.ps1`).

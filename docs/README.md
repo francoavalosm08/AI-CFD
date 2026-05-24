@@ -9,8 +9,9 @@ Read these docs in this order when picking up the project.
 5. `PHASE_3_REAL_FOAMAGENT_OPENFOAM_PLAN.md` - detailed Phase 3 plan, now focused on local OpenFOAM without runtime API keys.
 6. `LOCAL_OPENFOAM_NO_API_RUNBOOK.md` - no-API local OpenFOAM workflow and troubleshooting.
 7. `GMSH_AIRFOIL_2D_TEMPLATE.md` - required Gmsh physical names and mesh contract for production `.msh` uploads.
-8. `REAL_MODE_RUNBOOK.md` - optional Foam-Agent/MCP startup, health checks, and troubleshooting.
-9. `PHASE_2_PLANNING_DRAFT.md` - earlier planning details and risk analysis.
+8. `MESH_VALIDATION_CORPUS.md` - downloaded public mesh corpus, generated working validation meshes, and acceptance rules.
+9. `REAL_MODE_RUNBOOK.md` - optional Foam-Agent/MCP startup, health checks, and troubleshooting.
+10. `PHASE_2_PLANNING_DRAFT.md` - earlier planning details and risk analysis.
 
 ## Current Product Direction
 

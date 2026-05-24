@@ -226,22 +226,6 @@ if (-not $DryRun) {
     }
 
     if ($caseType -eq "airfoil_2d") {
-        foreach ($requiredName in @("forceCoeffs.dat", "forceCoeffs.csv", "force-coefficients.png", "pressure.png", "velocity-magnitude.png")) {
-            if (-not ($names -contains $requiredName)) {
-                Fail "Airfoil OpenFOAM smoke expected '$requiredName'."
-            }
-        }
-
-        if (-not (Test-JsonProperty -Object $run.summary -Name "final_coefficients")) {
-            Fail "Airfoil OpenFOAM smoke expected final_coefficients in run summary."
-        }
-        $finalCoefficients = $run.summary.final_coefficients
-        foreach ($coefficient in @("Cl", "Cd", "Cm")) {
-            if (-not (Test-JsonProperty -Object $finalCoefficients -Name $coefficient)) {
-                Fail "Airfoil OpenFOAM smoke expected final coefficient '$coefficient'."
-            }
-        }
-
         if (-not (Test-JsonProperty -Object $run.summary -Name "check_mesh_summary")) {
             Fail "Airfoil OpenFOAM smoke expected check_mesh_summary in run summary."
         }
@@ -251,6 +235,31 @@ if (-not $DryRun) {
         }
         if ([int]$checkMesh.cells -lt 40000) {
             Fail ("Airfoil mesh cell count is below V1 acceptance threshold: {0}." -f $checkMesh.cells)
+        }
+    }
+
+    $forceEnabled = $false
+    if (Test-JsonProperty -Object $run.summary -Name "force_coefficients") {
+        $forceConfig = $run.summary.force_coefficients
+        if (Test-JsonProperty -Object $forceConfig -Name "enabled") {
+            $forceEnabled = [bool]$forceConfig.enabled
+        }
+    }
+    if ($forceEnabled) {
+        foreach ($requiredName in @("forceCoeffs.dat", "forceCoeffs.csv", "force-coefficients.png", "pressure.png", "velocity-magnitude.png")) {
+            if (-not ($names -contains $requiredName)) {
+                Fail "Force-coefficient OpenFOAM smoke expected '$requiredName'."
+            }
+        }
+
+        if (-not (Test-JsonProperty -Object $run.summary -Name "final_coefficients")) {
+            Fail "Force-coefficient OpenFOAM smoke expected final_coefficients in run summary."
+        }
+        $finalCoefficients = $run.summary.final_coefficients
+        foreach ($coefficient in @("Cl", "Cd", "Cm")) {
+            if (-not (Test-JsonProperty -Object $finalCoefficients -Name $coefficient)) {
+                Fail "Force-coefficient OpenFOAM smoke expected final coefficient '$coefficient'."
+            }
         }
     }
 }

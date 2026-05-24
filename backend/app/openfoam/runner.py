@@ -152,9 +152,11 @@ class LocalOpenFoamRunner:
             if result.returncode != 0 and command["required"]:
                 detail = (result.stderr or result.stdout).strip()
                 raise RuntimeError(f"{command['name']} failed: {detail}")
-            if command["name"] == "import_mesh" and manifest.get("case_type") == "airfoil_2d":
+            if command["name"] == "import_mesh" and manifest.get("case_type") in {"airfoil_2d", "external_2d_obstacle"}:
                 patch_result = await command_executor(
-                    _front_and_back_empty_command(),
+                    _front_and_back_empty_command(
+                        "airfoil" if manifest.get("case_type") == "airfoil_2d" else "obstacle"
+                    ),
                     execution_case_dir,
                     self.timeout_seconds,
                 )
@@ -316,20 +318,20 @@ def _result_dict(result: CommandResult, name: str, required: bool) -> dict[str, 
     }
 
 
-def _front_and_back_empty_command() -> str:
+def _front_and_back_empty_command(wall_patch: str) -> str:
     script = (
         "from pathlib import Path; "
         "p=Path('constant/polyMesh/boundary'); "
         "text=p.read_text(); "
         "front='frontAndBack\\n    {\\n        type            patch;'; "
         "front_new='frontAndBack\\n    {\\n        type            empty;'; "
-        "airfoil='airfoil\\n    {\\n        type            patch;'; "
-        "airfoil_new='airfoil\\n    {\\n        type            wall;'; "
+        f"wall='{wall_patch}\\n    {{\\n        type            patch;'; "
+        f"wall_new='{wall_patch}\\n    {{\\n        type            wall;'; "
         "assert front in text, 'frontAndBack patch block with type patch was not found'; "
-        "assert airfoil in text, 'airfoil patch block with type patch was not found'; "
-        "text=text.replace(front,front_new,1).replace(airfoil,airfoil_new,1); "
+        f"assert wall in text, '{wall_patch} patch block with type patch was not found'; "
+        "text=text.replace(front,front_new,1).replace(wall,wall_new,1); "
         "p.write_text(text); "
-        "print('airfoil set to wall; frontAndBack set to empty')"
+        f"print('{wall_patch} set to wall; frontAndBack set to empty')"
     )
     escaped = script.replace("'", "'\"'\"'")
     return f"python3 -c '{escaped}'"

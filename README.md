@@ -89,6 +89,21 @@ The NACA 4412 validation path uses `25 m/s`, `2 deg` angle of attack, `1 m` chor
 
 Latest accepted local NACA run: `57,292` cells, `Cl=0.4591685`, `Cd=0.02907224`, `Cm=0.09620507`, all parsed from OpenFOAM-generated files.
 
+Additional mesh corpus and validation helpers:
+
+```powershell
+.\scripts\download-mesh-corpus.ps1
+.\scripts\generate-validation-meshes.ps1
+```
+
+`download-mesh-corpus.ps1` downloads three public Gmsh `.msh` files and writes a provenance/classification manifest. `generate-validation-meshes.ps1` creates three working local solver meshes: `naca0012.msh`, `cylinder.msh`, and `box.msh`. The simple obstacle meshes use the `external_2d_obstacle` physical-name contract: `inlet`, `outlet`, `farfield`, `obstacle`, `frontAndBack`, and `internal`.
+
+Latest generated validation mesh smokes on this machine:
+
+- Cylinder obstacle: run `ef80321b-7d1a-41a1-b44a-f87aa77549c3`, `4,348` cells, `checkMesh` passed.
+- Box obstacle: run `b9ca413a-a775-411e-9742-b8f18d988b46`, `4,456` cells, `checkMesh` passed.
+- NACA 0012: run `008a0d06-0c99-47cd-9988-513b52f9bb06`, `58,364` cells, `checkMesh` passed, `Cl=-0.02131213`, `Cd=0.0132719`, `Cm=-0.005501089`.
+
 Dedicated real-solver validation scripts:
 
 ```powershell

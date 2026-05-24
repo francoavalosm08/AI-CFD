@@ -253,16 +253,25 @@ def _write_point_plot(
         _write_png(path, image)
         return
     min_x, max_x, min_y, max_y = _focused_point_window(points, focus_points=focus_points)
-    min_value, max_value = min(values), max(values)
-    for (x, y), value in zip(points, values):
-        if not (min_x <= x <= max_x and min_y <= y <= max_y):
-            continue
+    visible = [
+        ((x, y), value)
+        for (x, y), value in zip(points, values)
+        if min_x <= x <= max_x and min_y <= y <= max_y
+    ]
+    if not visible:
+        _write_png(path, image)
+        return
+    min_value, max_value = min(value for _, value in visible), max(value for _, value in visible)
+    for (x, y), value in visible:
         px = _scale(x, min_x, max_x, MARGIN, WIDTH - MARGIN)
         py = _scale(y, min_y, max_y, HEIGHT - MARGIN, MARGIN)
         _draw_disc(image, int(px), int(py), 2, _color_ramp(value, min_value, max_value))
+    if focus_points:
+        _draw_focus_points(image, focus_points, min_x, max_x, min_y, max_y)
     _draw_axes(image)
+    _draw_color_legend(image, min_value, max_value)
     _draw_text(image, MARGIN, 24, title, (15, 23, 42), scale=3)
-    _draw_text(image, WIDTH - 210, HEIGHT - 18, f"min {min_value:.4g}  max {max_value:.4g}", (71, 85, 105))
+    _draw_text(image, WIDTH - 240, HEIGHT - 18, f"visible min {min_value:.4g}  max {max_value:.4g}", (71, 85, 105))
     _write_png(path, image)
 
 
@@ -307,6 +316,41 @@ def _canvas() -> list[bytearray]:
 def _draw_axes(image: list[bytearray]) -> None:
     _draw_line(image, MARGIN, HEIGHT - MARGIN, WIDTH - MARGIN, HEIGHT - MARGIN, (100, 116, 139))
     _draw_line(image, MARGIN, MARGIN, MARGIN, HEIGHT - MARGIN, (100, 116, 139))
+
+
+def _draw_color_legend(image: list[bytearray], min_value: float, max_value: float) -> None:
+    x0 = WIDTH - 58
+    x1 = WIDTH - 42
+    y0 = MARGIN + 28
+    y1 = HEIGHT - MARGIN - 28
+    for y in range(y0, y1 + 1):
+        t = 1 - (y - y0) / max(y1 - y0, 1)
+        value = min_value + t * (max_value - min_value)
+        color = _color_ramp(value, min_value, max_value)
+        for x in range(x0, x1 + 1):
+            _set_pixel(image, x, y, color)
+    _draw_line(image, x0, y0, x1, y0, (15, 23, 42))
+    _draw_line(image, x0, y1, x1, y1, (15, 23, 42))
+    _draw_line(image, x0, y0, x0, y1, (15, 23, 42))
+    _draw_line(image, x1, y0, x1, y1, (15, 23, 42))
+    _draw_text(image, x0 - 44, y0 - 16, f"{max_value:.3g}", (71, 85, 105))
+    _draw_text(image, x0 - 44, y1 + 8, f"{min_value:.3g}", (71, 85, 105))
+
+
+def _draw_focus_points(
+    image: list[bytearray],
+    focus_points: list[tuple[float, float]],
+    min_x: float,
+    max_x: float,
+    min_y: float,
+    max_y: float,
+) -> None:
+    for x, y in focus_points:
+        if not (min_x <= x <= max_x and min_y <= y <= max_y):
+            continue
+        px = int(_scale(x, min_x, max_x, MARGIN, WIDTH - MARGIN))
+        py = int(_scale(y, min_y, max_y, HEIGHT - MARGIN, MARGIN))
+        _draw_disc(image, px, py, 2, (15, 23, 42))
 
 
 def _plot_x(index: int, max_index: int) -> int:

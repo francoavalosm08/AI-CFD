@@ -1,4 +1,5 @@
 from pathlib import Path
+import zlib
 
 from app.openfoam.visualization import _focused_point_window, write_visualization_previews
 
@@ -7,6 +8,34 @@ def _png_size(path: Path) -> tuple[int, int]:
     data = path.read_bytes()
     assert data.startswith(b"\x89PNG\r\n\x1a\n")
     return int.from_bytes(data[16:20], "big"), int.from_bytes(data[20:24], "big")
+
+
+def _png_rgb_rows(path: Path) -> list[list[tuple[int, int, int]]]:
+    data = path.read_bytes()
+    offset = 8
+    width = int.from_bytes(data[16:20], "big")
+    height = int.from_bytes(data[20:24], "big")
+    payload = b""
+    while offset < len(data):
+        length = int.from_bytes(data[offset : offset + 4], "big")
+        chunk_type = data[offset + 4 : offset + 8]
+        chunk_payload = data[offset + 8 : offset + 8 + length]
+        if chunk_type == b"IDAT":
+            payload += chunk_payload
+        offset += 12 + length
+    raw = zlib.decompress(payload)
+    rows = []
+    cursor = 0
+    for _ in range(height):
+        assert raw[cursor] == 0
+        cursor += 1
+        row = []
+        for x in range(width):
+            pixel = raw[cursor + x * 3 : cursor + x * 3 + 3]
+            row.append((pixel[0], pixel[1], pixel[2]))
+        cursor += width * 3
+        rows.append(row)
+    return rows
 
 
 def test_write_visualization_previews_creates_residual_png_from_csv(tmp_path: Path) -> None:
@@ -119,3 +148,40 @@ def test_focused_point_window_crops_wide_external_domain_toward_center() -> None
     assert round(max_y - min_y, 2) == 1.62
     assert round((min_x + max_x) / 2, 2) == 0.5
     assert round((min_y + max_y) / 2, 2) == 0.05
+
+
+def test_point_visualization_draws_color_legend_from_visible_vtk_values(tmp_path: Path) -> None:
+    vtk_dir = tmp_path / "case" / "VTK"
+    airfoil_dir = vtk_dir / "airfoil"
+    airfoil_dir.mkdir(parents=True)
+    (vtk_dir / "case_100.vtk").write_text(
+        "# vtk DataFile Version 2.0\n"
+        "OpenFOAM output\n"
+        "ASCII\n"
+        "DATASET POLYDATA\n"
+        "POINTS 6 float\n"
+        "-6 -4 0\n10 -4 0\n10 4 0\n-6 4 0\n0 0 0\n1 0 0\n"
+        "POINT_DATA 6\n"
+        "SCALARS p float 1\n"
+        "LOOKUP_TABLE default\n"
+        "-100\n100\n50\n25\n0\n10\n",
+        encoding="utf-8",
+    )
+    (airfoil_dir / "airfoil_100.vtk").write_text(
+        "# vtk DataFile Version 2.0\n"
+        "airfoil\n"
+        "ASCII\n"
+        "DATASET POLYDATA\n"
+        "POINTS 2 float\n"
+        "0 0 0\n1 0 0\n",
+        encoding="utf-8",
+    )
+
+    previews = write_visualization_previews(tmp_path)
+
+    pressure = tmp_path / "pressure.png"
+    assert pressure in previews
+    rows = _png_rgb_rows(pressure)
+    legend_pixels = [rows[y][850] for y in range(90, 430, 56)]
+    assert len(set(legend_pixels)) >= 4
+    assert (248, 250, 252) not in set(legend_pixels)

@@ -67,6 +67,16 @@ NACA 4412 validation and bad-mesh validation:
 .\scripts\smoke-bad-mesh-validation.ps1
 ```
 
+Downloaded mesh corpus and generated working validation meshes:
+
+```powershell
+.\scripts\download-mesh-corpus.ps1
+.\scripts\generate-validation-meshes.ps1
+.\scripts\smoke-local-openfoam.ps1 -SampleMeshPath .local-data\validation-meshes\cylinder.msh -TimeoutSeconds 900
+.\scripts\smoke-local-openfoam.ps1 -SampleMeshPath .local-data\validation-meshes\box.msh -TimeoutSeconds 900
+.\scripts\smoke-local-openfoam.ps1 -SampleMeshPath .local-data\validation-meshes\naca0012.msh -TimeoutSeconds 1800
+```
+
 Full local V1 release acceptance:
 
 ```powershell
@@ -103,6 +113,8 @@ The NACA generator creates `naca4412.geo`, `naca4412.stl`, and a Gmsh 2.2 `.msh`
 The backend validates that patch set before `gmshToFoam`, records the result in `mesh-validation.json`, and treats it as a 2D airfoil case. It sets `frontAndBack` to `empty`, sets the imported `airfoil` patch type to `wall`, applies no-slip/wall-compatible turbulence fields on the airfoil, enables OpenFOAM `forceCoeffs` on the `airfoil` patch, and records chord, kinematic viscosity, Reynolds number, mesh cell count, `checkMesh` summary, and final `Cl/Cd/Cm` when available.
 
 For user-created meshes, follow `docs/GMSH_AIRFOIL_2D_TEMPLATE.md`. A production V1 `.msh` should be a Gmsh 2.2 ASCII volume mesh with physical names `airfoil`, `inlet`, `outlet`, `farfield`, `frontAndBack`, and `internal`.
+
+Simple non-airfoil obstacle meshes can use the `external_2d_obstacle` contract with physical names `obstacle`, `inlet`, `outlet`, `farfield`, `frontAndBack`, and `internal`. See `docs/MESH_VALIDATION_CORPUS.md`.
 
 None of these should require `.env` or `OPENAI_API_KEY`.
 

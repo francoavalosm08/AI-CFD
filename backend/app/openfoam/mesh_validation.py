@@ -12,6 +12,14 @@ AIRFOIL_2D_REQUIRED_PHYSICAL_NAMES = {
     "outlet",
 }
 AIRFOIL_2D_HINT_NAMES = {"airfoil", "farfield", "frontAndBack"}
+EXTERNAL_2D_OBSTACLE_REQUIRED_PHYSICAL_NAMES = {
+    "farfield",
+    "frontAndBack",
+    "inlet",
+    "internal",
+    "obstacle",
+    "outlet",
+}
 
 
 def read_msh_physical_names(mesh_path: Path) -> set[str]:
@@ -33,6 +41,22 @@ def read_msh_physical_names(mesh_path: Path) -> set[str]:
 def validate_msh_physical_names(mesh_path: Path) -> dict:
     physical_names = read_msh_physical_names(mesh_path)
     warnings: list[str] = []
+    if "obstacle" in physical_names:
+        missing = sorted(EXTERNAL_2D_OBSTACLE_REQUIRED_PHYSICAL_NAMES - physical_names)
+        if missing:
+            warnings.append(
+                "Missing required external_2d_obstacle physical names: " + ", ".join(missing)
+            )
+        return {
+            "case_type": "external_2d_obstacle",
+            "confidence": "high" if not missing else "low",
+            "passed": not missing,
+            "physical_names": sorted(physical_names),
+            "required_physical_names": sorted(EXTERNAL_2D_OBSTACLE_REQUIRED_PHYSICAL_NAMES),
+            "missing_required_physical_names": missing,
+            "warnings": warnings,
+        }
+
     is_airfoil_candidate = bool(physical_names & AIRFOIL_2D_HINT_NAMES)
     if is_airfoil_candidate:
         missing = sorted(AIRFOIL_2D_REQUIRED_PHYSICAL_NAMES - physical_names)

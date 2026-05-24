@@ -58,3 +58,22 @@ def test_generic_mesh_validation_passes_with_lower_confidence(tmp_path: Path) ->
     assert validation["passed"] is True
     assert validation["required_physical_names"] == []
     assert "Mesh does not match a known V1 patch template" in validation["warnings"][0]
+
+
+def test_external_2d_obstacle_validation_passes_for_simple_geometry_contract(tmp_path: Path) -> None:
+    mesh = tmp_path / "cylinder.msh"
+    _mesh_with_names(mesh, ["inlet", "outlet", "farfield", "obstacle", "frontAndBack", "internal"])
+
+    validation = validate_msh_physical_names(mesh)
+
+    assert validation["case_type"] == "external_2d_obstacle"
+    assert validation["confidence"] == "high"
+    assert validation["passed"] is True
+    assert validation["required_physical_names"] == [
+        "farfield",
+        "frontAndBack",
+        "inlet",
+        "internal",
+        "obstacle",
+        "outlet",
+    ]

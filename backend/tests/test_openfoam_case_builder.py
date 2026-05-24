@@ -190,3 +190,45 @@ def test_case_builder_omits_force_coefficients_for_generic_mesh(tmp_path: Path) 
     assert not (tmp_path / "case" / "system" / "forceCoeffs").exists()
     assert '#include "forceCoeffs"' not in (tmp_path / "case" / "system" / "controlDict").read_text()
     assert manifest["force_coefficients"]["enabled"] is False
+
+
+def test_case_builder_uses_external_obstacle_boundaries_for_simple_geometry(tmp_path: Path) -> None:
+    mesh = tmp_path / "cylinder.msh"
+    mesh.write_text(
+        "\n".join(
+            [
+                "$MeshFormat",
+                "2.2 0 8",
+                "$EndMeshFormat",
+                "$PhysicalNames",
+                "6",
+                '2 1 "inlet"',
+                '2 2 "outlet"',
+                '2 3 "farfield"',
+                '2 4 "obstacle"',
+                '2 5 "frontAndBack"',
+                '3 6 "internal"',
+                "$EndPhysicalNames",
+            ]
+        )
+    )
+    spec = SimulationSpec(
+        upload_id="upload-1",
+        units="m",
+        length_scale=1,
+        velocity=15,
+        angle_of_attack=0,
+    )
+
+    manifest = build_openfoam_case(spec=spec, mesh_path=mesh, case_dir=tmp_path / "case")
+
+    assert manifest["case_type"] == "external_2d_obstacle"
+    assert manifest["force_coefficients"]["enabled"] is True
+    assert manifest["force_coefficients"]["patches"] == ["obstacle"]
+    u_text = (tmp_path / "case" / "0" / "U").read_text()
+    force_text = (tmp_path / "case" / "system" / "forceCoeffs").read_text()
+    assert "obstacle" in u_text
+    assert "type            noSlip;" in u_text
+    assert "frontAndBack" in u_text
+    assert "type            empty;" in u_text
+    assert "patches         (obstacle);" in force_text

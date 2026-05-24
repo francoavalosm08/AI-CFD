@@ -66,6 +66,9 @@ This is a simplified roadmap for non-software stakeholders, while keeping the ke
 - Latest accepted OpenFOAM-derived NACA coefficients: `Cl=0.4591685`, `Cd=0.02907224`, `Cm=0.09620507`.
 - WSL-native staging under `/tmp/ai-cfd-workbench/<run_id>/case` for real runs, with copy-back to the Windows run directory.
 - Pre-run `.msh` physical-name validation with `mesh-validation.json`.
+- Downloaded public `.msh` corpus script with provenance manifest and solver-readiness classification.
+- Generated working validation meshes for NACA 0012, cylinder obstacle, and square-box obstacle.
+- New `external_2d_obstacle` mesh contract for simple non-airfoil geometries.
 - Airfoil-specific `forceCoeffs` setup and parser for OpenFOAM-generated `Cl`, `Cd`, and `Cm`.
 - Force coefficient artifacts: `forceCoeffs.dat`, `forceCoeffs.csv`, and `force-coefficients.png`.
 - Dashboard summary cards for cells, Reynolds number, `checkMesh`, `Cl`, `Cd`, and `Cm`.
