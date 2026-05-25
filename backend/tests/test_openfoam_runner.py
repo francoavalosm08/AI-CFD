@@ -295,7 +295,8 @@ async def test_runner_sets_empty_patch_before_check_mesh_for_2d_airfoil(tmp_path
     assert any("frontAndBack" in command and "airfoil" in command for command in executor.commands)
     assert result["check_mesh_summary"]["passed"] is True
     assert result["check_mesh_summary"]["cells"] == 45000
-    assert result["visualizations"] == ["residuals.png"]
+    assert "residuals.png" in result["visualizations"]
+    assert "mesh-quality.png" in result["visualizations"]
     assert (tmp_path / "run" / "residuals.png").exists()
 
 

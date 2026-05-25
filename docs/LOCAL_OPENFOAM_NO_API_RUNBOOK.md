@@ -108,7 +108,7 @@ Run real surface/CAD intake gates:
 
 The STEP path first converts CAD to an STL surface with Gmsh, then uses the same `snappyHexMesh` case builder as direct STL uploads. This is a real improvement over requiring STEP to become a Gmsh `.msh` with physical names, but complex CAD can still need cleanup before Gmsh can export a watertight surface.
 
-Every STL/STEP snappy run now writes `geometry-diagnostics.json` before OpenFOAM commands execute. It records triangle count, disconnected body count, watertightness, winding consistency, volume, scale hints, safe repair attempts, and recommended cleanup actions.
+Every STL/STEP snappy run now writes `geometry-diagnostics.json` before OpenFOAM commands execute. It records triangle count, disconnected body count, watertightness, winding consistency, volume, scale hints, safe repair attempts, and recommended cleanup actions. It also writes `geometry-readiness.json` with a final `ready`, `repaired_ready`, `failed_geometry`, `failed_meshing`, or `failed_solver_mesh_quality` status.
 
 The default repair mode is conservative: `trimesh` removes degenerate triangles, merges duplicate vertices, fixes winding/normals, and fills simple triangle/quad holes. For local-only aggressive repair experiments, start the backend with:
 
@@ -131,6 +131,15 @@ To include the same aggressive repair mode in the local V1 gate:
 ```
 
 This runs the runtime report, fast release check, WSL/OpenFOAM preflight, real NACA validation, and bad-mesh validation against a temporary local OpenFOAM backend.
+
+Run the generated surface corpus when changing STL/STEP intake:
+
+```powershell
+.\scripts\release-v1-local.ps1 -IncludeSurfaceCorpus
+.\scripts\release-v1-local.ps1 -IncludeSurfaceCorpus -EnableAggressiveSurfaceRepair
+```
+
+The corpus writes `.local-data\verify-logs\surface-corpus-result.json` and checks clean STL/STEP, conservative repairs, duplicate/degenerate triangles, multiple disconnected bodies, open sheets, and bad scale. Invalid geometry should fail with `geometry-readiness.json` recommendations instead of reaching the solver silently.
 
 For the heavier three-mesh solver gate, use:
 
@@ -264,7 +273,7 @@ Latest NACA 4412 validation result on this machine:
 - `checkMesh`: passed.
 - Cell count: `57,292`.
 - Final OpenFOAM-derived coefficients from latest accepted run: `Cl=0.4591685`, `Cd=0.02907224`, `Cm=0.09620507`.
-- Artifacts: `mesh-validation.json`, `checkMesh.log`, `solver.log`, `residuals.csv`, `residuals.png`, `forceCoeffs.dat`, `forceCoeffs.csv`, `force-coefficients.png`, `velocity-magnitude.png`, `pressure.png`, VTK files, `openfoam-case.zip`, and `openfoam-report.html`.
+- Artifacts: `mesh-validation.json`, `checkMesh.log`, `solver.log`, `residuals.csv`, `residuals.png`, `forceCoeffs.dat`, `forceCoeffs.csv`, `force-coefficients.png`, `velocity-magnitude.png`, `pressure.png`, `mesh-quality.png`, VTK files, `openfoam-case.zip`, and `openfoam-report.html`. STL/STEP runs also add `geometry-diagnostics.json`, `geometry-readiness.json`, and `geometry-diagnostics.png`.
 
 Next implementation work:
 
@@ -281,6 +290,6 @@ Next implementation work:
 | Path with spaces fails | Windows-to-WSL quoting issue | Unit-tested path adapter |
 | `checkMesh` fails | Mesh invalid or boundary mismatch | Run fails with `checkMesh.log` artifact |
 | STEP conversion fails before OpenFOAM | Missing Gmsh or CAD geometry that cannot export to a clean STL surface | Error recommends CAD cleanup, watertight STL export, or premeshed `.msh` |
-| STL snappy meshing fails | Open STL, self-intersections, bad scale, or inadequate refinement | Inspect `surfaceCheck.log`, `surfaceFeatures.log`, `snappyHexMesh.log`, `checkMesh.log`, and use `scripts\generate-snappy-stl-case.ps1` |
+| STL snappy meshing fails | Open STL, self-intersections, multiple bodies, bad scale, or inadequate refinement | Inspect `geometry-readiness.json`, `surfaceCheck.log`, `surfaceFeatures.log`, `snappyHexMesh.log`, `checkMesh.log`, and use `scripts\generate-snappy-stl-case.ps1` |
 | Solver diverges | Bad case defaults or mesh quality | Run fails with `solver.log` and zipped case |
 | No visualization | `foamToVTK` or PyVista missing | Still return logs/case zip; PNGs are optional |

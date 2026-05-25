@@ -67,6 +67,7 @@ if ($caseType -ne "external_3d_stl_snappy") {
 foreach ($requiredName in @(
     "surfaceCheck.log",
     "geometry-diagnostics.json",
+    "geometry-readiness.json",
     "blockMesh.log",
     "surfaceFeatures.log",
     "snappyHexMesh.log",

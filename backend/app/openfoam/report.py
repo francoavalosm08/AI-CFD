@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import html
+import json
 from pathlib import Path
 
 from app.openfoam.parsers import parse_check_mesh_summary
@@ -18,6 +19,10 @@ def write_run_report(
     force_rows = _read_force_rows(run_dir / "forceCoeffs.csv")
     check_mesh_text = (run_dir / "checkMesh.log").read_text(errors="replace") if (run_dir / "checkMesh.log").exists() else ""
     check_mesh_summary = parse_check_mesh_summary(check_mesh_text)
+    stored_check_mesh_summary = _read_json(run_dir / "checkMesh-summary.json")
+    if stored_check_mesh_summary:
+        check_mesh_summary = {**check_mesh_summary, **stored_check_mesh_summary}
+    geometry_readiness = _read_json(run_dir / "geometry-readiness.json")
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(
         _html(
@@ -27,6 +32,7 @@ def write_run_report(
             force_rows=force_rows,
             check_mesh_text=check_mesh_text,
             check_mesh_summary=check_mesh_summary,
+            geometry_readiness=geometry_readiness,
             run_dir=run_dir,
         ),
         encoding="utf-8",
@@ -48,6 +54,16 @@ def _read_force_rows(path: Path) -> list[dict[str, str]]:
         return list(csv.DictReader(handle))
 
 
+def _read_json(path: Path) -> dict:
+    if not path.exists():
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
 def _html(
     *,
     title: str,
@@ -56,6 +72,7 @@ def _html(
     force_rows: list[dict[str, str]],
     check_mesh_text: str,
     check_mesh_summary: dict,
+    geometry_readiness: dict,
     run_dir: Path,
 ) -> str:
     final_residuals: dict[str, str] = {}
@@ -85,6 +102,11 @@ def _html(
             f"<tr><td>{html.escape(name)}</td><td>{html.escape(final_force_row.get(name, ''))}</td></tr>"
             for name in ["Cl", "Cd", "Cm"]
         )
+    run_quality_cards = _run_quality_cards(geometry_readiness, check_mesh_summary, final_force_row)
+    readiness_recommendations = "".join(
+        f"<li>{html.escape(str(item))}</li>"
+        for item in geometry_readiness.get("recommendations", [])
+    )
     check_lines = "\n".join(
         line
         for line in check_mesh_text.splitlines()
@@ -112,6 +134,7 @@ a{{color:#075985}}
 <h1>{html.escape(title)}</h1>
 <p class="muted">All values displayed here are parsed from generated OpenFOAM run files.</p>
 <div class="grid">{input_cards}</div>
+<div class="card"><h2>Run quality</h2><div class="grid">{run_quality_cards}</div><ul>{readiness_recommendations}</ul></div>
 <div class="card"><h2>checkMesh summary</h2>
 <p><b>Passed:</b> {html.escape(str(check_mesh_summary.get("passed")))}</p>
 <p><b>Cells:</b> {html.escape(str(check_mesh_summary.get("cells")))}</p>
@@ -121,3 +144,32 @@ a{{color:#075985}}
 <div class="card"><h2>Final force coefficients</h2><table><tr><th>Coefficient</th><th>Value</th></tr>{force_table}</table></div>
 </div></body></html>
 """
+
+
+def _run_quality_cards(geometry_readiness: dict, check_mesh_summary: dict, final_force_row: dict[str, str]) -> str:
+    cards = {
+        "Geometry readiness": geometry_readiness.get("status", "n/a"),
+        "Repair mode": geometry_readiness.get("repair_mode", "n/a"),
+        "MeshFix attempted": geometry_readiness.get("meshfix_attempted", "n/a"),
+        "surfaceCheck": _pass_text(geometry_readiness.get("surface_check_passed")),
+        "checkMesh": _pass_text(check_mesh_summary.get("passed", geometry_readiness.get("check_mesh_passed"))),
+        "Cells": check_mesh_summary.get("cells", "n/a"),
+        "Max non-orthogonality": check_mesh_summary.get("max_non_orthogonality", "n/a"),
+        "Max skewness": check_mesh_summary.get("max_skewness", "n/a"),
+        "Max aspect ratio": check_mesh_summary.get("max_aspect_ratio", "n/a"),
+    }
+    for coefficient in ["Cl", "Cd", "Cm"]:
+        if coefficient in final_force_row:
+            cards[coefficient] = final_force_row[coefficient]
+    return "\n".join(
+        f'<div class="card"><div class="muted">{html.escape(label)}</div><div class="metric">{html.escape(str(value))}</div></div>'
+        for label, value in cards.items()
+    )
+
+
+def _pass_text(value) -> str:
+    if value is True:
+        return "pass"
+    if value is False:
+        return "fail"
+    return "n/a"

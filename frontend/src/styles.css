@@ -201,19 +201,27 @@ select {
   border-radius: 8px;
   color: #ffffff;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr)) auto auto;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto auto auto;
   gap: 1px;
   overflow: hidden;
 }
 
 .run-summary div,
-.run-summary button {
+.run-summary button,
+.run-summary .report-link {
   background: #22313a;
   border: 0;
   border-radius: 0;
   color: #ffffff;
   display: grid;
   padding: 14px;
+}
+
+.run-summary .report-link {
+  align-items: center;
+  display: inline-flex;
+  gap: 8px;
+  text-decoration: none;
 }
 
 .run-summary span {

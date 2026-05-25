@@ -39,6 +39,8 @@ def test_phase5_local_v1_acceptance_script_runs_all_release_gates() -> None:
     assert "smoke-stl-snappy-openfoam.ps1" in text
     assert "smoke-step-snappy-openfoam.ps1" in text
     assert "IncludeValidationMeshSuite" in text
+    assert "IncludeSurfaceCorpus" in text
+    assert "smoke-surface-corpus.ps1" in text
     assert "EnableAggressiveSurfaceRepair" in text
     assert "surface-repair" in text
     assert "smoke-validation-mesh-suite.ps1" in text
@@ -88,6 +90,23 @@ def test_step_snappy_smoke_script_uses_tracked_step_fixture() -> None:
     assert "external_3d_stl_snappy" in text
     assert "snappyHexMesh.log" in text
     assert "geometry-diagnostics.json" in text
+
+
+def test_surface_corpus_smoke_script_records_surface_corpus_results() -> None:
+    script = REPO_ROOT / "scripts" / "smoke-surface-corpus.ps1"
+
+    text = script.read_text(encoding="utf-8")
+
+    assert "surface-corpus-result.json" in text
+    assert "clean-cube.stl" in text
+    assert "clean-cylinder.stl" in text
+    assert "clean-box.step" in text
+    assert "repairable-hole.stl" in text
+    assert "multiple-bodies.stl" in text
+    assert "open-sheet.stl" in text
+    assert "bad-scale.stl" in text
+    assert "EnableAggressiveSurfaceRepair" in text
+    assert "geometry-readiness.json" in text
 
 
 def test_local_verify_cleans_up_child_server_processes_by_port() -> None:

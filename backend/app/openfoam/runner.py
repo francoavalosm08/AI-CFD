@@ -10,6 +10,7 @@ from typing import Any
 
 from app.openfoam.artifacts import write_force_coefficients_csv, write_residual_csv, zip_case
 from app.openfoam.case_builder import build_openfoam_case
+from app.openfoam.geometry_readiness import write_geometry_readiness
 from app.openfoam.mesh_validation import validate_msh_physical_names
 from app.openfoam.parsers import (
     final_force_coefficients,
@@ -79,7 +80,8 @@ class LocalOpenFoamRunner:
         output.mkdir(parents=True, exist_ok=True)
         case_dir = output / "case"
         source_path = Path(mesh_path)
-        if source_path.suffix.lower() == ".stl":
+        is_surface_case = source_path.suffix.lower() == ".stl"
+        if is_surface_case:
             await _emit(emit, "preprocessing", "Preparing STL surface for snappyHexMesh")
             mesh_validation = {
                 "case_type": "external_3d_stl_snappy",
@@ -97,11 +99,15 @@ class LocalOpenFoamRunner:
                 encoding="utf-8",
             )
             await _emit(emit, "planning", "Building deterministic snappyHexMesh case")
-            manifest = build_snappy_stl_case(
-                spec=self.spec,
-                stl_path=source_path,
-                case_dir=case_dir,
-            )
+            try:
+                manifest = build_snappy_stl_case(
+                    spec=self.spec,
+                    stl_path=source_path,
+                    case_dir=case_dir,
+                )
+            except RuntimeError:
+                write_geometry_readiness(run_dir=output, command_results=[])
+                raise
             commands = snappy_openfoam_commands()
         else:
             await _emit(emit, "preprocessing", "Validating Gmsh physical names")
@@ -158,6 +164,11 @@ class LocalOpenFoamRunner:
             (output / "openfoam-dry-run.log").write_text(
                 "Dry run only. No OpenFOAM commands were executed.\n", encoding="utf-8"
             )
+            geometry_readiness = (
+                write_geometry_readiness(run_dir=output, command_results=[])
+                if is_surface_case
+                else None
+            )
             archive = await asyncio.to_thread(zip_case, case_dir, output / "openfoam-case.zip")
             return {
                 "mode": "local_openfoam",
@@ -167,6 +178,8 @@ class LocalOpenFoamRunner:
                 "commands": commands,
                 "manifest": manifest,
                 "mesh_validation": mesh_validation,
+                "geometry_readiness": geometry_readiness,
+                "geometry_diagnostics": _read_json(output / "geometry-diagnostics.json"),
             }
 
         results: list[dict[str, Any]] = []
@@ -183,6 +196,10 @@ class LocalOpenFoamRunner:
             results.append(_result_dict(result, command["name"], command["required"]))
             self._write_command_log(output, command["name"], result)
             if result.returncode != 0 and command["required"]:
+                if is_surface_case:
+                    if command["name"] == "check_mesh":
+                        _write_check_mesh_summary(output)
+                    write_geometry_readiness(run_dir=output, command_results=results)
                 detail = (result.stderr or result.stdout).strip()
                 raise RuntimeError(f"{command['name']} failed: {detail}")
             if command["name"] == "import_mesh" and manifest.get("case_type") in {"airfoil_2d", "external_2d_obstacle"}:
@@ -202,15 +219,7 @@ class LocalOpenFoamRunner:
                 await _emit(emit, "running", "Running simpleFoam solver")
 
         solver_log = output / "solver.log"
-        check_mesh_log = output / "checkMesh.log"
-        check_mesh_summary = parse_check_mesh_summary(
-            check_mesh_log.read_text(encoding="utf-8") if check_mesh_log.exists() else ""
-        )
-        if check_mesh_summary:
-            (output / "checkMesh-summary.json").write_text(
-                json.dumps(check_mesh_summary, indent=2),
-                encoding="utf-8",
-            )
+        check_mesh_summary = _write_check_mesh_summary(output)
         residuals = parse_residuals(solver_log.read_text(encoding="utf-8") if solver_log.exists() else "")
         if residuals:
             write_residual_csv(residuals, output / "residuals.csv")
@@ -218,6 +227,12 @@ class LocalOpenFoamRunner:
             await self._copy_wsl_case_back(staged_case_dir_wsl, case_dir)
         force_rows = _collect_force_coefficients(case_dir, output)
         final_coefficients = final_force_coefficients(force_rows)
+        geometry_readiness = (
+            write_geometry_readiness(run_dir=output, command_results=results)
+            if is_surface_case
+            else None
+        )
+        geometry_diagnostics = _read_json(output / "geometry-diagnostics.json")
         visualizations = write_visualization_previews(output)
         archive = await asyncio.to_thread(zip_case, case_dir, output / "openfoam-case.zip")
         chord_length = manifest.get("chord_length_m") or self.spec.length_scale
@@ -249,6 +264,10 @@ class LocalOpenFoamRunner:
             "force_coefficients": manifest.get("force_coefficients", {"enabled": False}),
             "final_coefficients": final_coefficients,
             "check_mesh_summary": check_mesh_summary,
+            "mesh_quality": check_mesh_summary,
+            "geometry_readiness": geometry_readiness,
+            "geometry_diagnostics": geometry_diagnostics,
+            "report_sections": ["run_quality", "visual_previews", "residuals", "force_coefficients"],
         }
 
     def _commands(self) -> list[dict[str, Any]]:
@@ -400,3 +419,26 @@ def _force_coefficients_sort_key(path: Path) -> tuple[float, str]:
     except ValueError:
         time_value = -1.0
     return (time_value, path.as_posix())
+
+
+def _write_check_mesh_summary(output_dir: Path) -> dict[str, Any]:
+    check_mesh_log = output_dir / "checkMesh.log"
+    check_mesh_summary = parse_check_mesh_summary(
+        check_mesh_log.read_text(encoding="utf-8") if check_mesh_log.exists() else ""
+    )
+    if check_mesh_summary:
+        (output_dir / "checkMesh-summary.json").write_text(
+            json.dumps(check_mesh_summary, indent=2),
+            encoding="utf-8",
+        )
+    return check_mesh_summary
+
+
+def _read_json(path: Path) -> dict[str, Any]:
+    if not path.exists():
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return {}
+    return data if isinstance(data, dict) else {}

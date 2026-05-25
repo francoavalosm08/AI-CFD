@@ -102,7 +102,7 @@ This is a simplified roadmap for non-software stakeholders, while keeping the ke
 - STL/snappyHexMesh command checks in the same preflight.
 - Machine/runtime snapshot through `scripts\runtime-report.ps1`, which writes `.local-data/runtime-report.json`.
 - Dry-run, real NACA, and bad-mesh smoke scripts.
-- Real STL and STEP smoke scripts with required `geometry-diagnostics.json` artifacts.
+- Real STL and STEP smoke scripts with required `geometry-diagnostics.json` and `geometry-readiness.json` artifacts.
 - Docker/Foam-Agent remains optional parity/advanced infrastructure, not a V1 requirement.
 - Local non-Docker workflow stays the primary iteration path.
 
@@ -115,8 +115,9 @@ This is a simplified roadmap for non-software stakeholders, while keeping the ke
 **What is implemented locally:**
 - Backend pytest, frontend Vitest, Playwright E2E, fake smoke, dry-run OpenFOAM smoke, real NACA smoke, and bad-mesh smoke quality gates.
 - Release checklist through `scripts/release-check.ps1` plus the real-solver acceptance scripts.
-- Full local V1 acceptance through `scripts\release-v1-local.ps1`, which runs the runtime report, fast release check, WSL/OpenFOAM preflight, real NACA validation, and bad-mesh validation.
+- Full local V1 acceptance through `scripts\release-v1-local.ps1`, which runs the runtime report, fast release check, WSL/OpenFOAM preflight, real NACA validation, real STL/STEP validation, and bad-mesh validation.
 - Optional heavier local V1 acceptance through `scripts\release-v1-local.ps1 -IncludeValidationMeshSuite`, which also runs NACA 0012, cylinder, and square-box generated mesh smokes.
+- Optional arbitrary-surface acceptance through `scripts\release-v1-local.ps1 -IncludeSurfaceCorpus`, which also runs generated clean, repairable, and invalid STL/STEP cases.
 - Real STL and STEP intake gates are part of `scripts\release-v1-local.ps1`.
 - GitHub Actions CI for the frontend build and fast release gate on `push` and `pull_request`.
 - Operational runbooks and known limits in `README.md`, `docs/LOCAL_OPENFOAM_NO_API_RUNBOOK.md`, `docs/EXTERNAL_AERO_V1_ROADMAP.md`, and `AGENTS.md`.

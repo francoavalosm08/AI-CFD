@@ -4,9 +4,11 @@ param(
     [switch]$SkipRuntimeReport,
     [switch]$SkipRealOpenFoam,
     [switch]$IncludeValidationMeshSuite,
+    [switch]$IncludeSurfaceCorpus,
     [int]$NacaTimeoutSeconds = 1200,
     [int]$StlTimeoutSeconds = 600,
     [int]$StepTimeoutSeconds = 600,
+    [int]$SurfaceCorpusTimeoutSeconds = 900,
     [int]$ValidationMeshTimeoutSeconds = 900,
     [int]$ValidationMeshNacaTimeoutSeconds = 1800,
     [int]$BadMeshTimeoutSeconds = 120,
@@ -146,10 +148,11 @@ $backendScript = Join-Path $scriptRoot "dev-openfoam-backend.ps1"
 $nacaSmokeScript = Join-Path $scriptRoot "smoke-naca-openfoam.ps1"
 $stlSnappySmokeScript = Join-Path $scriptRoot "smoke-stl-snappy-openfoam.ps1"
 $stepSnappySmokeScript = Join-Path $scriptRoot "smoke-step-snappy-openfoam.ps1"
+$surfaceCorpusSmokeScript = Join-Path $scriptRoot "smoke-surface-corpus.ps1"
 $badMeshSmokeScript = Join-Path $scriptRoot "smoke-bad-mesh-validation.ps1"
 $validationMeshSuiteScript = Join-Path $scriptRoot "smoke-validation-mesh-suite.ps1"
 
-foreach ($requiredScript in @($runtimeReportScript, $releaseCheckScript, $preflightScript, $backendScript, $nacaSmokeScript, $stlSnappySmokeScript, $stepSnappySmokeScript, $badMeshSmokeScript, $validationMeshSuiteScript)) {
+foreach ($requiredScript in @($runtimeReportScript, $releaseCheckScript, $preflightScript, $backendScript, $nacaSmokeScript, $stlSnappySmokeScript, $stepSnappySmokeScript, $surfaceCorpusSmokeScript, $badMeshSmokeScript, $validationMeshSuiteScript)) {
     if (-not (Test-Path $requiredScript)) {
         Fail "Missing required V1 acceptance script: $requiredScript"
     }
@@ -224,6 +227,18 @@ try {
         "-PollIntervalSeconds", [string]$PollIntervalSeconds,
         "-SkipPreflight"
     )
+    if ($IncludeSurfaceCorpus) {
+        $surfaceCorpusArgs = @(
+            "-ApiBaseUrl", $baseUrl,
+            "-TimeoutSeconds", [string]$SurfaceCorpusTimeoutSeconds,
+            "-PollIntervalSeconds", [string]$PollIntervalSeconds,
+            "-SkipPreflight"
+        )
+        if ($EnableAggressiveSurfaceRepair) {
+            $surfaceCorpusArgs += "-EnableAggressiveSurfaceRepair"
+        }
+        Run-FileScript -Path $surfaceCorpusSmokeScript -Arguments $surfaceCorpusArgs
+    }
     Run-FileScript -Path $badMeshSmokeScript -Arguments @(
         "-ApiBaseUrl", $baseUrl,
         "-TimeoutSeconds", [string]$BadMeshTimeoutSeconds,

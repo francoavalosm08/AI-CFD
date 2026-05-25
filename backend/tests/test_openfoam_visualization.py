@@ -76,6 +76,27 @@ def test_write_visualization_previews_creates_force_coefficient_plot_from_csv(tm
     assert _png_size(plot) == (900, 520)
 
 
+def test_write_visualization_previews_creates_mesh_and_geometry_summary_cards(tmp_path: Path) -> None:
+    (tmp_path / "checkMesh-summary.json").write_text(
+        '{"passed":true,"cells":45000,"max_non_orthogonality":29.1,"max_skewness":0.35,"max_aspect_ratio":1.2}',
+        encoding="utf-8",
+    )
+    (tmp_path / "geometry-readiness.json").write_text(
+        '{"status":"repaired_ready","repair_mode":"meshfix","meshfix_attempted":true,'
+        '"recommendations":["Surface passed after repair."]}',
+        encoding="utf-8",
+    )
+
+    previews = write_visualization_previews(tmp_path)
+
+    mesh_summary = tmp_path / "mesh-quality.png"
+    geometry = tmp_path / "geometry-diagnostics.png"
+    assert mesh_summary in previews
+    assert geometry in previews
+    assert _png_size(mesh_summary) == (900, 520)
+    assert _png_size(geometry) == (900, 520)
+
+
 def test_write_visualization_previews_creates_vtk_png_from_ascii_vtk_points(tmp_path: Path) -> None:
     vtk_dir = tmp_path / "case" / "VTK"
     vtk_dir.mkdir(parents=True)

@@ -20,6 +20,16 @@ def test_write_run_report_includes_generated_openfoam_outputs(tmp_path: Path) ->
         encoding="utf-8",
     )
     (run_dir / "force-coefficients.png").write_bytes(b"png")
+    (run_dir / "geometry-readiness.json").write_text(
+        '{"status":"repaired_ready","repair_mode":"meshfix","meshfix_attempted":true,'
+        '"surface_check_passed":true,"check_mesh_passed":true,'
+        '"recommendations":["Surface passed after repair."]}',
+        encoding="utf-8",
+    )
+    (run_dir / "checkMesh-summary.json").write_text(
+        '{"passed":true,"cells":45000,"max_non_orthogonality":29.1,"max_skewness":0.35,"max_aspect_ratio":1.2}',
+        encoding="utf-8",
+    )
 
     report = write_run_report(
         run_dir=run_dir,
@@ -40,6 +50,12 @@ def test_write_run_report_includes_generated_openfoam_outputs(tmp_path: Path) ->
     assert "0.45" in html
     assert "0.032" in html
     assert "-0.014" in html
+    assert "Run quality" in html
+    assert "repaired_ready" in html
+    assert "meshfix" in html
+    assert "Surface passed after repair." in html
+    assert "29.1" in html
+    assert "0.35" in html
     assert '<img src="pressure.png"' in html
     assert "Generated artifacts" not in html
     assert "Solver log tail" not in html

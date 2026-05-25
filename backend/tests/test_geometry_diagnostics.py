@@ -253,3 +253,75 @@ def test_prepare_surface_fails_open_stl_before_snappy(tmp_path: Path) -> None:
     assert result["broken_face_count"] >= 1
     assert "watertight STL" in " ".join(result["recommendations"])
     assert diagnostics_path.exists()
+
+
+def test_prepare_surface_fails_multiple_disconnected_bodies(tmp_path: Path) -> None:
+    source = tmp_path / "two-bodies.stl"
+    target = tmp_path / "case" / "constant" / "triSurface" / "obstacle.stl"
+    diagnostics_path = tmp_path / "geometry-diagnostics.json"
+    _closed_tetra_stl(source)
+    source.write_text(
+        source.read_text(encoding="ascii").replace("endsolid tetra", "")
+        + """  facet normal 0 0 1
+    outer loop
+      vertex 3 0 0
+      vertex 4 0 0
+      vertex 3 1 0
+    endloop
+  endfacet
+  facet normal 0 -1 0
+    outer loop
+      vertex 3 0 0
+      vertex 3 0 1
+      vertex 4 0 0
+    endloop
+  endfacet
+  facet normal 1 1 1
+    outer loop
+      vertex 4 0 0
+      vertex 3 0 1
+      vertex 3 1 0
+    endloop
+  endfacet
+  facet normal -1 0 0
+    outer loop
+      vertex 3 0 0
+      vertex 3 1 0
+      vertex 3 0 1
+    endloop
+  endfacet
+endsolid tetra
+""",
+        encoding="ascii",
+    )
+
+    result = prepare_surface_for_snappy(
+        source_path=source,
+        target_path=target,
+        diagnostics_path=diagnostics_path,
+    )
+
+    assert result["passed"] is False
+    assert result["body_count_after_repair"] == 2
+    assert "multiple disconnected bodies" in " ".join(result["recommendations"])
+    assert not target.exists()
+
+
+def test_prepare_surface_fails_suspicious_scale(tmp_path: Path) -> None:
+    source = tmp_path / "tiny.stl"
+    target = tmp_path / "case" / "constant" / "triSurface" / "obstacle.stl"
+    diagnostics_path = tmp_path / "geometry-diagnostics.json"
+    _closed_tetra_stl(source)
+    text = source.read_text(encoding="ascii").replace("1 0 0", "0.000001 0 0").replace("0 1 0", "0 0.000001 0").replace("0 0 1", "0 0 0.000001")
+    source.write_text(text, encoding="ascii")
+
+    result = prepare_surface_for_snappy(
+        source_path=source,
+        target_path=target,
+        diagnostics_path=diagnostics_path,
+    )
+
+    assert result["passed"] is False
+    assert result["scale_hint"] == "very_small_check_units"
+    assert "units/scale" in " ".join(result["recommendations"])
+    assert not target.exists()

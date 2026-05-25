@@ -46,6 +46,10 @@ export default function App({ initialRunId }: AppProps = {}) {
 
   const images = useMemo(() => artifacts.filter((artifact) => artifact.type === "image"), [artifacts]);
   const logs = useMemo(() => artifacts.filter((artifact) => artifact.type === "log"), [artifacts]);
+  const reportArtifact = useMemo(
+    () => artifacts.find((artifact) => artifact.display_name === "openfoam-report.html") ?? null,
+    [artifacts]
+  );
   const downloads = useMemo(
     () => artifacts.filter((artifact) => artifact.type === "download" || artifact.type === "plot_data" || artifact.type === "vtk"),
     [artifacts]
@@ -320,6 +324,12 @@ export default function App({ initialRunId }: AppProps = {}) {
             <Square size={16} />
             Cancel
           </button>
+          {reportArtifact && (
+            <a className="report-link" href={artifactUrl(reportArtifact.id)} target="_blank" rel="noreferrer">
+              <ExternalLink size={16} />
+              Open full report
+            </a>
+          )}
         </div>
 
         {run?.error && <div className="error-banner">{run.error}</div>}
@@ -417,12 +427,20 @@ function buildSummaryMetrics(run: RunRecord | null): SummaryMetric[] {
   const summary = run.summary;
   const manifest = asRecord(summary.manifest);
   const checkMesh = asRecord(summary.check_mesh_summary);
+  const geometryReadiness = asRecord(summary.geometry_readiness);
+  const meshQuality = asRecord(summary.mesh_quality);
   const finalCoefficients = asRecord(summary.final_coefficients);
   const forceCoefficients = asRecord(summary.force_coefficients);
   const metrics: SummaryMetric[] = [];
 
   const caseType = asString(manifest.case_type);
   if (caseType) metrics.push({ label: "Case", value: formatCaseType(caseType) });
+
+  const readinessStatus = asString(geometryReadiness.status);
+  if (readinessStatus) metrics.push({ label: "Geometry readiness", value: formatReadiness(readinessStatus) });
+
+  const repairMode = asString(geometryReadiness.repair_mode);
+  if (repairMode) metrics.push({ label: "Repair mode", value: repairMode });
 
   const patches = forceCoefficients.patches;
   if (Array.isArray(patches) && typeof patches[0] === "string") {
@@ -431,6 +449,12 @@ function buildSummaryMetrics(run: RunRecord | null): SummaryMetric[] {
 
   const cells = asNumber(checkMesh.cells);
   if (cells !== null) metrics.push({ label: "Cells", value: cells.toLocaleString() });
+
+  const maxNonOrthogonality = asNumber(meshQuality.max_non_orthogonality ?? checkMesh.max_non_orthogonality);
+  if (maxNonOrthogonality !== null) metrics.push({ label: "Max non-orthogonality", value: formatCoefficient(maxNonOrthogonality) });
+
+  const maxSkewness = asNumber(meshQuality.max_skewness ?? checkMesh.max_skewness);
+  if (maxSkewness !== null) metrics.push({ label: "Max skewness", value: formatCoefficient(maxSkewness) });
 
   const reynolds = asNumber(manifest.reynolds_number);
   if (reynolds !== null) metrics.push({ label: "Re", value: reynolds.toExponential(3) });
@@ -477,6 +501,12 @@ function formatCaseType(value: string): string {
 
 function formatCoefficient(value: number): string {
   return Number(value.toPrecision(4)).toString();
+}
+
+
+function formatReadiness(value: string): string {
+  const text = value.replaceAll("_", " ");
+  return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
 

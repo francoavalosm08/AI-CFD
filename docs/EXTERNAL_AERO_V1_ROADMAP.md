@@ -87,10 +87,12 @@ Implemented:
 - STL uploads in local OpenFOAM mode now route to a dedicated `snappyHexMesh` case scaffold instead of being forced through weak Gmsh conversion.
 - STEP/STP uploads in local OpenFOAM mode now use Gmsh to export an STL surface, then route through the same `snappyHexMesh` case scaffold.
 - STL/STEP surface intake now runs a pre-solver geometry diagnostic using `trimesh` plus `networkx`. It writes `geometry-diagnostics.json`, checks watertightness, disconnected body count, winding consistency, enclosed volume, scale hints, and safe repair attempts, then stops before OpenFOAM if the surface is not solver-ready.
-- Conservative repair now removes degenerate triangles, merges duplicate vertices, fixes winding/normals before and after hole filling, and exports the repaired STL only if the surface has positive enclosed volume.
+- Surface intake also writes `geometry-readiness.json` with `ready`, `repaired_ready`, `failed_geometry`, `failed_meshing`, or `failed_solver_mesh_quality`, plus human-readable repair recommendations.
+- Conservative repair now removes degenerate triangles, merges duplicate vertices, fixes winding/normals before and after hole filling, and exports the repaired STL only if the surface has one connected closed body, positive enclosed volume, and sane scale.
 - Optional aggressive repair is available with `AI_CFD_SURFACE_REPAIR=meshfix` or `scripts\dev-openfoam-backend.ps1 -EnableAggressiveSurfaceRepair`. This uses PyMeshFix only after conservative repair fails, and records the MeshFix attempt/result in `geometry-diagnostics.json`.
 - `scripts\generate-snappy-stl-case.ps1` builds an inspectable local STL case under `.local-data\snappy-stl-case\` using `surfaceCheck`, `blockMesh`, `surfaceFeatures`, `snappyHexMesh`, and `checkMesh` commands.
 - The tracked `samples\obstacle-box.stl` and `samples\obstacle-box.step` fixtures give repeatable local checks for both surface and CAD intake.
+- `scripts\smoke-surface-corpus.ps1` generates clean, repairable, duplicate/degenerate, multi-body, open-sheet, and bad-scale STL/STEP fixtures and records results in `.local-data\verify-logs\surface-corpus-result.json`.
 
 Important limit: this improves arbitrary STL/STEP reliability, but it does not make arbitrary user geometry 100% guaranteed. Bad scale, holes, self-intersections, non-manifold edges, multi-body geometry, and poor feature detail can still fail the diagnostic gate, `surfaceCheck`, `snappyHexMesh`, or `checkMesh`.
 
@@ -104,6 +106,8 @@ The V1 viewer intentionally uses lightweight static PNGs:
 - `velocity-magnitude.png`
 - `residuals.png`
 - `force-coefficients.png`
+- `mesh-quality.png`
+- `geometry-diagnostics.png`
 
 Pressure and velocity previews are generated from ASCII OpenFOAM VTK point data as coarse binned heatmaps, with the solid airfoil/obstacle body filled from patch VTK points and the focus outline still visible.
 

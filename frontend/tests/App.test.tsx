@@ -110,6 +110,65 @@ describe("App", () => {
     vi.unstubAllGlobals();
   });
 
+  it("renders geometry readiness, repair mode, mesh quality, and report link", async () => {
+    const run: RunRecord = {
+      ...completedRun(),
+      id: "run-quality",
+      summary: {
+        geometry_readiness: {
+          status: "repaired_ready",
+          repair_mode: "meshfix",
+          meshfix_attempted: true,
+          passed: true
+        },
+        mesh_quality: {
+          cells: 45000,
+          max_non_orthogonality: 29.1,
+          max_skewness: 0.35,
+          max_aspect_ratio: 1.2
+        },
+        check_mesh_summary: { passed: true, cells: 45000 },
+        manifest: { case_type: "external_3d_stl_snappy", reynolds_number: 1000000 }
+      }
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (url === "/api/health") {
+          return Response.json({ status: "ok", runner_mode: "local_openfoam" });
+        }
+        if (url === "/api/runs/run-quality") {
+          return Response.json(run);
+        }
+        if (url === "/api/runs/run-quality/artifacts") {
+          return Response.json({
+            artifacts: [
+              {
+                id: "artifact-report",
+                run_id: "run-quality",
+                type: "other",
+                path: "openfoam-report.html",
+                display_name: "openfoam-report.html",
+                mime_type: "text/html",
+                created_at: "2026-05-22T00:00:00Z"
+              }
+            ]
+          });
+        }
+        return Response.json({}, { status: 404 });
+      })
+    );
+
+    render(<App initialRunId="run-quality" />);
+
+    expect(await screen.findByText("Repaired ready")).toBeInTheDocument();
+    expect(screen.getByText("meshfix")).toBeInTheDocument();
+    expect(screen.getByText("29.1")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Open full report/i })).toHaveAttribute("href", "/api/artifacts/artifact-report");
+
+    vi.unstubAllGlobals();
+  });
+
   it("opens solver image artifacts in a larger preview dialog", async () => {
     const run = completedRun();
     vi.stubGlobal(

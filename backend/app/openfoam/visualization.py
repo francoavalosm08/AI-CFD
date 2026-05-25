@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import json
 import math
 import struct
 import zlib
@@ -30,6 +31,38 @@ def write_visualization_previews(run_dir: Path) -> list[Path]:
         _write_linear_plot(path, force_coefficients, "Force coefficients")
         previews.append(path)
 
+    check_mesh_summary = _read_json(run_dir / "checkMesh-summary.json")
+    if check_mesh_summary:
+        path = run_dir / "mesh-quality.png"
+        _write_summary_card(
+            path,
+            "Mesh quality",
+            [
+                ("checkMesh", "pass" if check_mesh_summary.get("passed") else "fail"),
+                ("cells", _format_value(check_mesh_summary.get("cells"))),
+                ("max non-orthogonality", _format_value(check_mesh_summary.get("max_non_orthogonality"))),
+                ("max skewness", _format_value(check_mesh_summary.get("max_skewness"))),
+                ("max aspect ratio", _format_value(check_mesh_summary.get("max_aspect_ratio"))),
+            ],
+        )
+        previews.append(path)
+
+    geometry_readiness = _read_json(run_dir / "geometry-readiness.json")
+    if geometry_readiness:
+        path = run_dir / "geometry-diagnostics.png"
+        _write_summary_card(
+            path,
+            "Geometry diagnostics",
+            [
+                ("readiness", _format_value(geometry_readiness.get("status"))),
+                ("repair mode", _format_value(geometry_readiness.get("repair_mode"))),
+                ("meshfix attempted", _format_value(geometry_readiness.get("meshfix_attempted"))),
+                ("surfaceCheck", _pass_text(geometry_readiness.get("surface_check_passed"))),
+                ("checkMesh", _pass_text(geometry_readiness.get("check_mesh_passed"))),
+            ],
+        )
+        previews.append(path)
+
     vtk = _find_latest_case_vtk(run_dir / "case" / "VTK")
     if vtk:
         data = _read_ascii_vtk(vtk)
@@ -43,6 +76,45 @@ def write_visualization_previews(run_dir: Path) -> list[Path]:
             _write_point_plot(path, data.points, data.pressure, "Pressure", focus_points=focus_points)
             previews.append(path)
     return previews
+
+
+def _read_json(path: Path) -> dict:
+    if not path.exists():
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _write_summary_card(path: Path, title: str, rows: list[tuple[str, str]]) -> None:
+    image = _canvas()
+    _draw_text(image, MARGIN, 34, title, (15, 23, 42), scale=3)
+    y = 110
+    for label, value in rows:
+        _draw_text(image, MARGIN, y, label, (71, 85, 105), scale=2)
+        _draw_text(image, 420, y, value, (15, 23, 42), scale=3)
+        y += 68
+    _write_png(path, image)
+
+
+def _format_value(value) -> str:
+    if value is None:
+        return "n/a"
+    if isinstance(value, bool):
+        return "yes" if value else "no"
+    if isinstance(value, float):
+        return f"{value:.4g}"
+    return str(value)
+
+
+def _pass_text(value) -> str:
+    if value is True:
+        return "pass"
+    if value is False:
+        return "fail"
+    return "n/a"
 
 
 def _read_residual_series(path: Path) -> dict[str, list[float]]:
@@ -280,7 +352,7 @@ def _write_point_plot(
     _draw_axes(image)
     _draw_color_legend(image, min_value, max_value)
     _draw_text(image, MARGIN, 24, title, (15, 23, 42), scale=3)
-    _draw_text(image, WIDTH - 240, HEIGHT - 18, f"visible min {min_value:.4g}  max {max_value:.4g}", (71, 85, 105))
+    _draw_text(image, WIDTH - 300, HEIGHT - 18, f"visible window min {min_value:.4g} max {max_value:.4g}", (71, 85, 105))
     _write_png(path, image)
 
 

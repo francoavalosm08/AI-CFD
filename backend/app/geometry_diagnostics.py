@@ -62,7 +62,7 @@ def prepare_surface_for_snappy(
             "body_count_after_repair": _body_count(mesh),
         }
     )
-    diagnostics["passed"] = _mesh_passed(mesh)
+    diagnostics["passed"] = _surface_passed(mesh, diagnostics)
     diagnostics["recommendations"] = _recommendations(diagnostics)
 
     diagnostics_path.parent.mkdir(parents=True, exist_ok=True)
@@ -115,6 +115,14 @@ def _repair_with_meshfix(
 
 def _mesh_passed(mesh: trimesh.Trimesh) -> bool:
     return bool(mesh.is_watertight and len(mesh.faces) > 0 and _mesh_volume(mesh) > 0)
+
+
+def _surface_passed(mesh: trimesh.Trimesh, diagnostics: dict[str, Any]) -> bool:
+    return bool(
+        _mesh_passed(mesh)
+        and diagnostics.get("body_count_after_repair") == 1
+        and diagnostics.get("scale_hint") == "ok"
+    )
 
 
 def _add_stage(diagnostics: dict[str, Any], name: str, mesh: trimesh.Trimesh) -> None:
