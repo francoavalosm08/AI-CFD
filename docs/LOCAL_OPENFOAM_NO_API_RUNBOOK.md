@@ -99,6 +99,15 @@ simpleFoam
 
 Use this path for STL reliability work. It is stricter and more OpenFOAM-native than forcing arbitrary STL through Gmsh, but it still depends on closed/watertight geometry and passing `checkMesh`. The backend treats default `checkMesh` as the required STL gate and keeps `checkMesh -allGeometry -allTopology` as optional strict diagnostics because strict geometry can flag concave snapped cells even when the baseline mesh is usable.
 
+Run real surface/CAD intake gates:
+
+```powershell
+.\scripts\smoke-stl-snappy-openfoam.ps1
+.\scripts\smoke-step-snappy-openfoam.ps1
+```
+
+The STEP path first converts CAD to an STL surface with Gmsh, then uses the same `snappyHexMesh` case builder as direct STL uploads. This is a real improvement over requiring STEP to become a Gmsh `.msh` with physical names, but complex CAD can still need cleanup before Gmsh can export a watertight surface.
+
 Full local V1 release acceptance:
 
 ```powershell
@@ -222,6 +231,7 @@ The repo currently has:
 - WSL-native staging under `/tmp/ai-cfd-workbench/<run_id>/case` for real runs, with copy-back into `.local-data/runs/<run_id>/case`
 - pre-run `.msh` physical-name validation for the `airfoil_2d` template
 - dedicated STL/snappyHexMesh case generation for local OpenFOAM mode
+- STEP/STP-to-STL conversion for the same snappyHexMesh path
 - OpenFOAM `forceCoeffs` setup for `airfoil_2d` and final coefficient parsing
 - force coefficient CSV/PNG/report/dashboard outputs
 - production `.msh` guidance in `docs/GMSH_AIRFOIL_2D_TEMPLATE.md`
@@ -254,7 +264,7 @@ Next implementation work:
 | OpenFOAM command missing | OpenFOAM not installed or bashrc not sourced | Preflight reports missing command |
 | Path with spaces fails | Windows-to-WSL quoting issue | Unit-tested path adapter |
 | `checkMesh` fails | Mesh invalid or boundary mismatch | Run fails with `checkMesh.log` artifact |
-| STEP/STL conversion fails before OpenFOAM | Missing Gmsh, missing volume mesh, or missing physical names | Error recommends a cleaner closed STL/STEP or premeshed `.msh` |
+| STEP conversion fails before OpenFOAM | Missing Gmsh or CAD geometry that cannot export to a clean STL surface | Error recommends CAD cleanup, watertight STL export, or premeshed `.msh` |
 | STL snappy meshing fails | Open STL, self-intersections, bad scale, or inadequate refinement | Inspect `surfaceCheck.log`, `surfaceFeatures.log`, `snappyHexMesh.log`, `checkMesh.log`, and use `scripts\generate-snappy-stl-case.ps1` |
 | Solver diverges | Bad case defaults or mesh quality | Run fails with `solver.log` and zipped case |
 | No visualization | `foamToVTK` or PyVista missing | Still return logs/case zip; PNGs are optional |

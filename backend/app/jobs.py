@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 
 from app.artifacts import discover_artifacts
-from app.mesh import MeshConversionError, convert_to_gmsh_mesh
+from app.mesh import MeshConversionError, convert_cad_to_stl_surface, convert_to_gmsh_mesh
 from app.prompt import build_foam_agent_prompt
 from app.schemas import RunRecord, RunStatus, UploadRecord
 
@@ -94,6 +94,12 @@ class RunExecutor:
             return source
         if upload.kind == "surface_mesh" and getattr(self.foam_agent, "accepts_surface_mesh", False):
             return source
+        if upload.kind == "cad" and getattr(self.foam_agent, "accepts_surface_mesh", False):
+            return await convert_cad_to_stl_surface(
+                source,
+                run_dir / "input.stl",
+                gmsh_command=self.gmsh_command,
+            )
         if upload.kind in {"surface_mesh", "cad"}:
             return await convert_to_gmsh_mesh(
                 source,

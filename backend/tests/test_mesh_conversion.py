@@ -4,6 +4,8 @@ import pytest
 
 from app.mesh import (
     MeshConversionError,
+    cad_surface_conversion_failure_message,
+    cad_surface_conversion_unavailable_message,
     conversion_failure_message,
     conversion_unavailable_message,
     validate_converted_mesh,
@@ -50,3 +52,21 @@ def test_converted_mesh_without_physical_names_fails_with_actionable_message(tmp
     assert "Converted body.step to .msh, but the result has no Gmsh PhysicalNames" in message
     assert "airfoil, inlet, outlet, farfield, frontAndBack, and internal" in message
     assert "pre-meshed Gmsh .msh" in message
+
+
+def test_missing_gmsh_cad_surface_message_points_to_snappy_path() -> None:
+    message = cad_surface_conversion_unavailable_message("body.step", "gmsh")
+
+    assert "Could not convert body.step to an STL surface" in message
+    assert "snappyHexMesh" in message
+    assert "Install Gmsh" in message
+    assert "pre-meshed Gmsh .msh" in message
+
+
+def test_cad_surface_failure_message_explains_geometry_cleanup() -> None:
+    message = cad_surface_conversion_failure_message("body.step", "Could not sew faces")
+
+    assert "Could not convert body.step to an STL surface" in message
+    assert "geometry cleanup" in message
+    assert "watertight STL" in message
+    assert "Gmsh output: Could not sew faces" in message

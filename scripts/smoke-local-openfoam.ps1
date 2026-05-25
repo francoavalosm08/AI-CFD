@@ -5,6 +5,7 @@ param(
     [double]$Velocity = 25,
     [double]$AngleOfAttack = 3,
     [double]$LengthScale = 1,
+    [int]$MaxRuntimeMinutes = 60,
     [int]$TimeoutSeconds = 120,
     [int]$PollIntervalSeconds = 1,
     [switch]$DryRun,
@@ -145,7 +146,7 @@ $runRequest = @{
         velocity = $Velocity
         angle_of_attack = $AngleOfAttack
         mesh_quality = "balanced"
-        max_runtime_minutes = 60
+        max_runtime_minutes = $MaxRuntimeMinutes
     }
 } | ConvertTo-Json -Depth 6
 

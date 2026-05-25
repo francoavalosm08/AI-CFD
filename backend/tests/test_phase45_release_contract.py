@@ -36,6 +36,8 @@ def test_phase5_local_v1_acceptance_script_runs_all_release_gates() -> None:
     assert "dev-openfoam-backend.ps1" in text
     assert "smoke-naca-openfoam.ps1" in text
     assert "smoke-bad-mesh-validation.ps1" in text
+    assert "smoke-stl-snappy-openfoam.ps1" in text
+    assert "smoke-step-snappy-openfoam.ps1" in text
     assert "IncludeValidationMeshSuite" in text
     assert "smoke-validation-mesh-suite.ps1" in text
     assert "release-v1-local.ps1" in phase_summary
@@ -55,6 +57,33 @@ def test_stl_snappy_helper_script_is_documented_for_manual_reliability_checks() 
     assert "surfaceFeatures" in text
     assert "generate-snappy-stl-case.ps1" in roadmap
     assert "generate-snappy-stl-case.ps1" in runbook
+
+
+def test_stl_snappy_smoke_script_validates_real_snappy_artifacts() -> None:
+    script = REPO_ROOT / "scripts" / "smoke-stl-snappy-openfoam.ps1"
+    smoke_local = (REPO_ROOT / "scripts" / "smoke-local-openfoam.ps1").read_text(encoding="utf-8")
+
+    text = script.read_text(encoding="utf-8")
+
+    assert "samples\\obstacle-box.stl" in text
+    assert "snappyHexMesh.log" in text
+    assert "surfaceCheck.log" in text
+    assert "checkMesh-strict.log" in text
+    assert "external_3d_stl_snappy" in text
+    assert "MaxRuntimeMinutes" in smoke_local
+
+
+def test_step_snappy_smoke_script_uses_tracked_step_fixture() -> None:
+    script = REPO_ROOT / "scripts" / "smoke-step-snappy-openfoam.ps1"
+    fixture = REPO_ROOT / "samples" / "obstacle-box.step"
+
+    text = script.read_text(encoding="utf-8")
+
+    assert fixture.exists()
+    assert fixture.stat().st_size > 1000
+    assert "samples\\obstacle-box.step" in text
+    assert "external_3d_stl_snappy" in text
+    assert "snappyHexMesh.log" in text
 
 
 def test_local_verify_cleans_up_child_server_processes_by_port() -> None:

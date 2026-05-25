@@ -170,6 +170,59 @@ async def test_run_executor_passes_stl_directly_to_surface_aware_local_runner(tm
 
 
 @pytest.mark.asyncio
+async def test_run_executor_converts_cad_to_stl_for_surface_aware_local_runner(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    upload = UploadRecord(
+        id="upload-1",
+        original_name="body.step",
+        stored_path=str(tmp_path / "uploads" / "body.step"),
+        kind="cad",
+    )
+    Path(upload.stored_path).parent.mkdir()
+    Path(upload.stored_path).write_text("ISO-10303-21;\nEND-ISO-10303-21;\n")
+    run = RunRecord(
+        id="run-1",
+        upload_id=upload.id,
+        status=RunStatus.queued,
+        spec=SimulationSpec(upload_id=upload.id, units="m", length_scale=1, velocity=20),
+    )
+    converted_sources: list[Path] = []
+
+    async def fake_convert_cad_to_stl_surface(source: Path, output: Path, *, gmsh_command: str):
+        converted_sources.append(source)
+        output.write_text("solid converted\nendsolid converted\n")
+        return output
+
+    class SurfaceAwareRunner:
+        mesh_path_mode = "host"
+        accepts_surface_mesh = True
+
+        def __init__(self) -> None:
+            self.mesh_path = ""
+
+        async def run_external_aero(self, *, prompt, mesh_path, output_dir, emit):
+            self.mesh_path = mesh_path
+            return {"mesh_path": mesh_path}
+
+    monkeypatch.setattr("app.jobs.convert_cad_to_stl_surface", fake_convert_cad_to_stl_surface)
+    runner = SurfaceAwareRunner()
+    executor = RunExecutor(
+        foam_agent=runner,
+        app_data_root=tmp_path,
+        agent_data_root="/workspace/data",
+        emit=lambda *_args: None,
+        gmsh_command="gmsh",
+    )
+
+    result = await executor.execute(run, upload)
+
+    assert result.status == RunStatus.completed
+    assert converted_sources == [Path(upload.stored_path)]
+    assert runner.mesh_path.endswith("input.stl")
+
+
+@pytest.mark.asyncio
 async def test_run_executor_discovers_artifacts_written_before_failure(tmp_path: Path):
     upload = UploadRecord(
         id="upload-1",

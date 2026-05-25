@@ -85,8 +85,9 @@ Implemented:
 - STEP/STL conversion failures distinguish missing Gmsh, missing volume mesh, missing physical names, and general geometry failures.
 - Converted STEP/STL/CAD meshes without Gmsh `PhysicalNames` fail before the solver with an explicit premeshed `.msh` recommendation.
 - STL uploads in local OpenFOAM mode now route to a dedicated `snappyHexMesh` case scaffold instead of being forced through weak Gmsh conversion.
+- STEP/STP uploads in local OpenFOAM mode now use Gmsh to export an STL surface, then route through the same `snappyHexMesh` case scaffold.
 - `scripts\generate-snappy-stl-case.ps1` builds an inspectable local STL case under `.local-data\snappy-stl-case\` using `surfaceCheck`, `blockMesh`, `surfaceFeatures`, `snappyHexMesh`, and `checkMesh` commands.
-- The tracked `samples\obstacle-box.stl` fixture gives a closed/watertight STL for repeatable local checks.
+- The tracked `samples\obstacle-box.stl` and `samples\obstacle-box.step` fixtures give repeatable local checks for both surface and CAD intake.
 
 Important limit: this improves arbitrary STL reliability, but it does not make arbitrary user geometry 100% guaranteed. Bad STL scale, holes, self-intersections, non-manifold edges, and poor feature detail can still fail `surfaceCheck`, `snappyHexMesh`, or `checkMesh`.
 
@@ -121,6 +122,8 @@ Commands:
 .\scripts\smoke-local-openfoam.ps1 -DryRun
 .\scripts\dev-openfoam-backend.ps1
 .\scripts\smoke-naca-openfoam.ps1 -TimeoutSeconds 1200
+.\scripts\smoke-stl-snappy-openfoam.ps1
+.\scripts\smoke-step-snappy-openfoam.ps1
 .\scripts\smoke-bad-mesh-validation.ps1
 ```
 
@@ -153,6 +156,8 @@ Release quality gates:
 - Playwright E2E passes
 - `release-check.ps1` passes
 - real NACA validation passes
+- real STL/snappy validation passes
+- real STEP-to-STL/snappy validation passes
 - bad mesh validation fails clearly
 
 One-command local V1 acceptance:

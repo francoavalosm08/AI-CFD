@@ -5,6 +5,8 @@ param(
     [switch]$SkipRealOpenFoam,
     [switch]$IncludeValidationMeshSuite,
     [int]$NacaTimeoutSeconds = 1200,
+    [int]$StlTimeoutSeconds = 600,
+    [int]$StepTimeoutSeconds = 600,
     [int]$ValidationMeshTimeoutSeconds = 900,
     [int]$ValidationMeshNacaTimeoutSeconds = 1800,
     [int]$BadMeshTimeoutSeconds = 120,
@@ -134,10 +136,12 @@ $releaseCheckScript = Join-Path $scriptRoot "release-check.ps1"
 $preflightScript = Join-Path $scriptRoot "dev-openfoam-wsl.ps1"
 $backendScript = Join-Path $scriptRoot "dev-openfoam-backend.ps1"
 $nacaSmokeScript = Join-Path $scriptRoot "smoke-naca-openfoam.ps1"
+$stlSnappySmokeScript = Join-Path $scriptRoot "smoke-stl-snappy-openfoam.ps1"
+$stepSnappySmokeScript = Join-Path $scriptRoot "smoke-step-snappy-openfoam.ps1"
 $badMeshSmokeScript = Join-Path $scriptRoot "smoke-bad-mesh-validation.ps1"
 $validationMeshSuiteScript = Join-Path $scriptRoot "smoke-validation-mesh-suite.ps1"
 
-foreach ($requiredScript in @($runtimeReportScript, $releaseCheckScript, $preflightScript, $backendScript, $nacaSmokeScript, $badMeshSmokeScript, $validationMeshSuiteScript)) {
+foreach ($requiredScript in @($runtimeReportScript, $releaseCheckScript, $preflightScript, $backendScript, $nacaSmokeScript, $stlSnappySmokeScript, $stepSnappySmokeScript, $badMeshSmokeScript, $validationMeshSuiteScript)) {
     if (-not (Test-Path $requiredScript)) {
         Fail "Missing required V1 acceptance script: $requiredScript"
     }
@@ -180,6 +184,18 @@ try {
         "-ApiBaseUrl", $baseUrl,
         "-TimeoutSeconds", [string]$NacaTimeoutSeconds,
         "-PollIntervalSeconds", [string]$PollIntervalSeconds
+    )
+    Run-FileScript -Path $stlSnappySmokeScript -Arguments @(
+        "-ApiBaseUrl", $baseUrl,
+        "-TimeoutSeconds", [string]$StlTimeoutSeconds,
+        "-PollIntervalSeconds", [string]$PollIntervalSeconds,
+        "-SkipPreflight"
+    )
+    Run-FileScript -Path $stepSnappySmokeScript -Arguments @(
+        "-ApiBaseUrl", $baseUrl,
+        "-TimeoutSeconds", [string]$StepTimeoutSeconds,
+        "-PollIntervalSeconds", [string]$PollIntervalSeconds,
+        "-SkipPreflight"
     )
     Run-FileScript -Path $badMeshSmokeScript -Arguments @(
         "-ApiBaseUrl", $baseUrl,

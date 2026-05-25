@@ -100,11 +100,20 @@ Do not accept future NACA validation runs as successful if `checkMesh` fails, Op
 ## Latest STL / snappyHexMesh Acceptance (2026-05-25)
 
 - STL uploads in local OpenFOAM mode now bypass weak Gmsh conversion and use a dedicated `snappyHexMesh` scaffold.
+- STEP/STP uploads in local OpenFOAM mode now export an STL surface with Gmsh and use the same `snappyHexMesh` scaffold.
 - The scaffold writes `constant/triSurface/obstacle.stl`, `system/blockMeshDict`, `system/surfaceFeaturesDict`, `system/snappyHexMeshDict`, `system/meshQualityDict`, `system/forceCoeffs`, `case-manifest.json`, and `snappy-manifest.json`.
 - The STL command sequence is `surfaceCheck`, `blockMesh`, `surfaceFeatures`, `snappyHexMesh -overwrite`, required default `checkMesh`, optional strict `checkMesh -allGeometry -allTopology`, `simpleFoam`, and optional `foamToVTK -ascii`.
 - `scripts\generate-snappy-stl-case.ps1` generates an inspectable local snappy case from `samples\obstacle-box.stl`.
+- `scripts\smoke-stl-snappy-openfoam.ps1` and `scripts\smoke-step-snappy-openfoam.ps1` are real API smoke gates for `samples\obstacle-box.stl` and `samples\obstacle-box.step`.
 - Latest manual WSL mesh check for `samples\obstacle-box.stl`: `surfaceCheck` reported the surface closed/no illegal triangles, `snappyHexMesh` finished without errors, required `checkMesh` reported `Mesh OK` with `12,538` cells, and strict diagnostics reported `96` concave cells in `checkMesh-strict.log`.
 - Latest API dry-run STL smoke passed against a temporary local OpenFOAM backend as run `2b15e970-f1f9-4722-a2bc-d56a10286080`, with 6 artifacts and 6 events.
+- Latest real STL snappy API smoke passed as run `c0e7103f-8762-4615-bb50-2ecc5e4c99ad`, with 38 artifacts and 9 events.
+- Latest real STEP-to-STL snappy API smoke passed as run `d8e46898-20a3-40aa-80fd-8a90b5406879`, with 38 artifacts and 9 events.
+- Latest real local V1 gate with STL and STEP included passed:
+  - NACA 4412 run `822198e9-d5d6-427f-9938-748dbc9bdbe9`.
+  - STL snappy run `51f6b2de-8984-4682-b428-a4010dcf6555`.
+  - STEP-to-STL snappy run `b1382751-987d-4103-a6cc-635d4f088066`.
+  - Bad mesh clean-failure run `aae4ed28-38b8-4a5f-a50f-eb33e8bbd9ca`.
 - `scripts\dev-openfoam-wsl.ps1 -CheckOnly` and `scripts\runtime-report.ps1` now check/report `surfaceCheck`, `blockMesh`, `surfaceFeatures`, and `snappyHexMesh`.
 - This improves arbitrary STL reliability but does not make arbitrary geometry guaranteed; bad scale, holes, self-intersections, non-manifold topology, and strict mesh diagnostics can still require geometry cleanup.
 
