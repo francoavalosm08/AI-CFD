@@ -175,7 +175,8 @@ export default function App({ initialRunId }: AppProps = {}) {
           <h2>Drop STEP, STL, Gmsh mesh, or OpenFOAM ZIP</h2>
           <p>Premeshed .msh is the supported V1 path. STEP/STL import is best-effort and requires clean geometry plus Gmsh.</p>
           <p className="mesh-copy">
-            Production Gmsh MSH files should define physical names: airfoil, inlet, outlet, farfield, frontAndBack, and internal.
+            Airfoil meshes need physical names: airfoil, inlet, outlet, farfield, frontAndBack, and internal.
+            Simple obstacle meshes can use: obstacle, inlet, outlet, farfield, frontAndBack, and internal.
           </p>
           <input
             ref={fileInput}
@@ -341,7 +342,7 @@ export default function App({ initialRunId }: AppProps = {}) {
               <h2>Visualizations</h2>
             </div>
             <div className="image-grid">
-              {images.length === 0 && <p className="muted">PyVista images will appear here after visualization.</p>}
+              {images.length === 0 && <p className="muted">OpenFOAM-derived images will appear here after visualization.</p>}
               {images.map((artifact) => (
                 <figure key={artifact.id}>
                   <img src={artifactUrl(artifact.id)} alt={artifact.display_name} />
@@ -417,7 +418,16 @@ function buildSummaryMetrics(run: RunRecord | null): SummaryMetric[] {
   const manifest = asRecord(summary.manifest);
   const checkMesh = asRecord(summary.check_mesh_summary);
   const finalCoefficients = asRecord(summary.final_coefficients);
+  const forceCoefficients = asRecord(summary.force_coefficients);
   const metrics: SummaryMetric[] = [];
+
+  const caseType = asString(manifest.case_type);
+  if (caseType) metrics.push({ label: "Case", value: formatCaseType(caseType) });
+
+  const patches = forceCoefficients.patches;
+  if (Array.isArray(patches) && typeof patches[0] === "string") {
+    metrics.push({ label: "Force patch", value: patches[0] });
+  }
 
   const cells = asNumber(checkMesh.cells);
   if (cells !== null) metrics.push({ label: "Cells", value: cells.toLocaleString() });
@@ -450,6 +460,18 @@ function asNumber(value: unknown): number | null {
     return Number.isFinite(parsed) ? parsed : null;
   }
   return null;
+}
+
+
+function asString(value: unknown): string | null {
+  return typeof value === "string" && value.trim() !== "" ? value : null;
+}
+
+
+function formatCaseType(value: string): string {
+  if (value === "airfoil_2d") return "2D airfoil";
+  if (value === "external_2d_obstacle") return "External obstacle";
+  return value.replaceAll("_", " ");
 }
 
 

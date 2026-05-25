@@ -34,3 +34,17 @@ def test_local_openfoam_smoke_checks_force_outputs_for_any_enabled_case() -> Non
     assert "forceCoeffs.dat" in script
     assert "force-coefficients.png" in script
     assert "final_coefficients" in script
+
+
+def test_validation_mesh_suite_runs_three_real_openfoam_smokes() -> None:
+    script = (REPO_ROOT / "scripts" / "smoke-validation-mesh-suite.ps1").read_text(encoding="utf-8")
+    runbook = (REPO_ROOT / "docs" / "LOCAL_OPENFOAM_NO_API_RUNBOOK.md").read_text(encoding="utf-8")
+
+    assert "generate-validation-meshes.ps1" in script
+    assert "dev-openfoam-backend.ps1" in script
+    assert "smoke-local-openfoam.ps1" in script
+    assert "cylinder.msh" in script
+    assert "box.msh" in script
+    assert "naca0012.msh" in script
+    assert "NacaTimeoutSeconds" in script
+    assert "smoke-validation-mesh-suite.ps1" in runbook

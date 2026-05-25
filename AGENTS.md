@@ -90,6 +90,11 @@ Do not accept future NACA validation runs as successful if `checkMesh` fails, Op
   - Cylinder run `ef80321b-7d1a-41a1-b44a-f87aa77549c3`: `checkMesh` passed, `4,348` cells, final OpenFOAM-derived `Cl=2.786664`, `Cd=3.491001`, `Cm=-0.6969827`.
   - Box run `b9ca413a-a775-411e-9742-b8f18d988b46`: `checkMesh` passed, `4,456` cells, final OpenFOAM-derived `Cl=-153.1205`, `Cd=3585.132`, `Cm=75.39039`.
   - NACA 0012 run `008a0d06-0c99-47cd-9988-513b52f9bb06`: `checkMesh` passed, `58,364` cells, final OpenFOAM-derived `Cl=-0.02131213`, `Cd=0.0132719`, `Cm=-0.005501089`.
+- `scripts\smoke-validation-mesh-suite.ps1` now runs that generated mesh set as a repeatable real OpenFOAM gate. Latest suite run:
+  - Cylinder run `344cba9d-aeb5-4466-81bb-f632ef549883`: `checkMesh` passed, `4,348` cells, final OpenFOAM-derived `Cl=2.786664`, `Cd=3.491001`, `Cm=-0.6969827`.
+  - Box run `6becac7e-ca65-46f2-afcc-2ddcce2eccbf`: `checkMesh` passed, `4,456` cells, final OpenFOAM-derived `Cl=-153.1205`, `Cd=3585.132`, `Cm=75.39039`.
+  - NACA 0012 run `99161bd3-14f4-408d-ab1f-74ac65819f6f`: `checkMesh` passed, `58,364` cells, final OpenFOAM-derived `Cl=-0.02131213`, `Cd=0.0132719`, `Cm=-0.005501089`.
+- `scripts\release-v1-local.ps1 -IncludeValidationMeshSuite` includes the heavier generated three-mesh suite in the full local acceptance gate.
 - Static PNG previews now use visible VTK values for pressure/velocity color scaling, include a color legend, and overlay the focused body points when available.
 
 ## Recent Work (Phase 3 — 2026-05-22)
@@ -141,10 +146,10 @@ A prior agent session implemented most of Phase 3 code and docs. Fake mode was p
 
 ### Verified in current session (2026-05-24)
 
-- `py -m pytest backend` -> **100 passed**
+- `py -m pytest backend` -> **101 passed**
 - `.\scripts\runtime-report.ps1` -> **PASS**, wrote `.local-data\runtime-report.json`
 - `.\scripts\release-check.ps1` -> **PASS**
-  - backend pytest: **100 passed**
+  - backend pytest: **101 passed**
   - frontend Vitest: **7 passed**
   - fake-mode smoke: **PASS**
   - Playwright E2E: **PASS**
@@ -259,8 +264,8 @@ Optional Foam-Agent/MCP mode (requires Docker + `.env` API key):
 The latest verified baseline passed:
 
 - Python/backend prerequisite check, including Gmsh 4.13.1.
-- Backend pytest suite: **100 tests** (includes MCP, preflight, mirroring, local OpenFOAM, mesh conversion, mesh validation, force coefficients, status persistence, non-blocking archive packaging, mesh corpus/generator coverage, Phase 4/5 release contracts, release-script cleanup, and CI workflow coverage).
-- Frontend Vitest suite: 7 tests.
+- Backend pytest suite: **101 tests** (includes MCP, preflight, mirroring, local OpenFOAM, mesh conversion, mesh validation, force coefficients, status persistence, non-blocking archive packaging, mesh corpus/generator coverage, Phase 4/5 release contracts, release-script cleanup, and CI workflow coverage).
+- Frontend Vitest suite: 8 tests.
 - Fake-mode backend smoke flow (`local-verify.ps1 -Scope backend`).
 - Playwright browser E2E workflow (via full `release-check.ps1`).
 - Local OpenFOAM dry-run smoke flow (via full `release-check.ps1`).

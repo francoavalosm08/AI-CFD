@@ -68,6 +68,7 @@ This is a simplified roadmap for non-software stakeholders, while keeping the ke
 - Pre-run `.msh` physical-name validation with `mesh-validation.json`.
 - Downloaded public `.msh` corpus script with provenance manifest and solver-readiness classification.
 - Generated working validation meshes for NACA 0012, cylinder obstacle, and square-box obstacle.
+- Repeatable three-mesh real solver gate through `scripts\smoke-validation-mesh-suite.ps1`.
 - New `external_2d_obstacle` mesh contract for simple non-airfoil geometries.
 - Airfoil-specific `forceCoeffs` setup and parser for OpenFOAM-generated `Cl`, `Cd`, and `Cm`.
 - Force coefficient artifacts: `forceCoeffs.dat`, `forceCoeffs.csv`, and `force-coefficients.png`.
@@ -107,6 +108,7 @@ This is a simplified roadmap for non-software stakeholders, while keeping the ke
 - Backend pytest, frontend Vitest, Playwright E2E, fake smoke, dry-run OpenFOAM smoke, real NACA smoke, and bad-mesh smoke quality gates.
 - Release checklist through `scripts/release-check.ps1` plus the real-solver acceptance scripts.
 - Full local V1 acceptance through `scripts\release-v1-local.ps1`, which runs the runtime report, fast release check, WSL/OpenFOAM preflight, real NACA validation, and bad-mesh validation.
+- Optional heavier local V1 acceptance through `scripts\release-v1-local.ps1 -IncludeValidationMeshSuite`, which also runs NACA 0012, cylinder, and square-box generated mesh smokes.
 - GitHub Actions CI for the frontend build and fast release gate on `push` and `pull_request`.
 - Operational runbooks and known limits in `README.md`, `docs/LOCAL_OPENFOAM_NO_API_RUNBOOK.md`, `docs/EXTERNAL_AERO_V1_ROADMAP.md`, and `AGENTS.md`.
 

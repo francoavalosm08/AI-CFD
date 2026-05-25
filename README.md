@@ -94,6 +94,7 @@ Additional mesh corpus and validation helpers:
 ```powershell
 .\scripts\download-mesh-corpus.ps1
 .\scripts\generate-validation-meshes.ps1
+.\scripts\smoke-validation-mesh-suite.ps1
 ```
 
 `download-mesh-corpus.ps1` downloads three public Gmsh `.msh` files and writes a provenance/classification manifest. `generate-validation-meshes.ps1` creates three working local solver meshes: `naca0012.msh`, `cylinder.msh`, and `box.msh`. The simple obstacle meshes use the `external_2d_obstacle` physical-name contract: `inlet`, `outlet`, `farfield`, `obstacle`, `frontAndBack`, and `internal`.
@@ -109,6 +110,12 @@ Dedicated real-solver validation scripts:
 ```powershell
 .\scripts\smoke-naca-openfoam.ps1 -TimeoutSeconds 1200
 .\scripts\smoke-bad-mesh-validation.ps1
+```
+
+To include the heavier generated three-mesh suite in the full local V1 gate:
+
+```powershell
+.\scripts\release-v1-local.ps1 -IncludeValidationMeshSuite
 ```
 
 For your own meshes:

@@ -42,6 +42,18 @@ The required physical names are:
 - `airfoil_2d`: `inlet`, `outlet`, `farfield`, `airfoil`, `frontAndBack`, `internal`
 - `external_2d_obstacle`: `inlet`, `outlet`, `farfield`, `obstacle`, `frontAndBack`, `internal`
 
+To generate and run all three working meshes through real OpenFOAM in one command:
+
+```powershell
+.\scripts\smoke-validation-mesh-suite.ps1
+```
+
+To include that heavier gate inside the full local V1 release acceptance:
+
+```powershell
+.\scripts\release-v1-local.ps1 -IncludeValidationMeshSuite
+```
+
 ## Acceptance Rule
 
 Do not claim a mesh works unless the real local OpenFOAM smoke reaches `completed` and returns solver artifacts from actual OpenFOAM output. Static preview images must be generated from solver VTK/CSV output, not hand-drawn to match an expected look.

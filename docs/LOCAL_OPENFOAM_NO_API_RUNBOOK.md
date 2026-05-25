@@ -72,6 +72,7 @@ Downloaded mesh corpus and generated working validation meshes:
 ```powershell
 .\scripts\download-mesh-corpus.ps1
 .\scripts\generate-validation-meshes.ps1
+.\scripts\smoke-validation-mesh-suite.ps1
 .\scripts\smoke-local-openfoam.ps1 -SampleMeshPath .local-data\validation-meshes\cylinder.msh -TimeoutSeconds 900
 .\scripts\smoke-local-openfoam.ps1 -SampleMeshPath .local-data\validation-meshes\box.msh -TimeoutSeconds 900
 .\scripts\smoke-local-openfoam.ps1 -SampleMeshPath .local-data\validation-meshes\naca0012.msh -TimeoutSeconds 1800
@@ -84,6 +85,12 @@ Full local V1 release acceptance:
 ```
 
 This runs the runtime report, fast release check, WSL/OpenFOAM preflight, real NACA validation, and bad-mesh validation against a temporary local OpenFOAM backend.
+
+For the heavier three-mesh solver gate, use:
+
+```powershell
+.\scripts\release-v1-local.ps1 -IncludeValidationMeshSuite
+```
 
 CI note: GitHub Actions runs the frontend production build and fast `release-check.ps1` gate, including fake-mode smoke, browser E2E, and local OpenFOAM dry-run smoke. Real NACA and bad-mesh validation stay local/manual unless a CI runner is provisioned with OpenFOAM.
 

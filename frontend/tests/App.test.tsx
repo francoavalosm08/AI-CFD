@@ -13,6 +13,7 @@ describe("App", () => {
     expect(screen.getByText("Drop STEP, STL, Gmsh mesh, or OpenFOAM ZIP")).toBeInTheDocument();
     expect(screen.getByText(/STEP\/STL import is best-effort/i)).toBeInTheDocument();
     expect(screen.getByText(/airfoil, inlet, outlet, farfield, frontAndBack, and internal/i)).toBeInTheDocument();
+    expect(screen.getByText(/obstacle, inlet, outlet, farfield, frontAndBack, and internal/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Velocity/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Start CFD run/i })).toBeDisabled();
     expect(screen.getByText(/Runner:/i)).toBeInTheDocument();
@@ -70,6 +71,41 @@ describe("App", () => {
     expect(screen.getByText("0.032")).toBeInTheDocument();
     expect(screen.getByText("-0.014")).toBeInTheDocument();
     expect(screen.getByText("Pass")).toBeInTheDocument();
+
+    vi.unstubAllGlobals();
+  });
+
+  it("renders simple obstacle case metadata from run summary", async () => {
+    const run: RunRecord = {
+      ...completedRun(),
+      id: "run-obstacle",
+      summary: {
+        check_mesh_summary: { passed: true, cells: 4456 },
+        manifest: { case_type: "external_2d_obstacle", reynolds_number: 1000000 },
+        force_coefficients: { enabled: true, patches: ["obstacle"] },
+        final_coefficients: { Cl: 2.78, Cd: 3.49, Cm: -0.697 }
+      }
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (url === "/api/health") {
+          return Response.json({ status: "ok", runner_mode: "local_openfoam" });
+        }
+        if (url === "/api/runs/run-obstacle") {
+          return Response.json(run);
+        }
+        if (url === "/api/runs/run-obstacle/artifacts") {
+          return Response.json({ artifacts: [] });
+        }
+        return Response.json({}, { status: 404 });
+      })
+    );
+
+    render(<App initialRunId="run-obstacle" />);
+
+    expect(await screen.findByText("External obstacle")).toBeInTheDocument();
+    expect(screen.getByText("obstacle")).toBeInTheDocument();
 
     vi.unstubAllGlobals();
   });

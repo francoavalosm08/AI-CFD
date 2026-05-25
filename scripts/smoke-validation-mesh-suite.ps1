@@ -1,15 +1,13 @@
 [CmdletBinding()]
 param(
-    [switch]$SkipReleaseCheck,
-    [switch]$SkipRuntimeReport,
-    [switch]$SkipRealOpenFoam,
-    [switch]$IncludeValidationMeshSuite,
-    [int]$NacaTimeoutSeconds = 1200,
-    [int]$ValidationMeshTimeoutSeconds = 900,
-    [int]$ValidationMeshNacaTimeoutSeconds = 1800,
-    [int]$BadMeshTimeoutSeconds = 120,
+    [string]$ApiBaseUrl = "",
+    [string]$OutputDir = ".local-data\validation-meshes",
+    [int]$TimeoutSeconds = 900,
+    [int]$NacaTimeoutSeconds = 1800,
     [int]$PollIntervalSeconds = 5,
-    [string]$BindHost = "127.0.0.1"
+    [string]$BindHost = "127.0.0.1",
+    [switch]$SkipGenerate,
+    [switch]$SkipPreflight
 )
 
 Set-StrictMode -Version Latest
@@ -126,80 +124,80 @@ function Wait-LocalOpenFoamBackend {
 
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repoRoot = (Resolve-Path (Join-Path $scriptRoot "..")).Path
+$resolvedOutput = if ([System.IO.Path]::IsPathRooted($OutputDir)) { $OutputDir } else { Join-Path $repoRoot $OutputDir }
 $logRoot = Join-Path $repoRoot ".local-data\verify-logs"
 New-Item -ItemType Directory -Force -Path $logRoot | Out-Null
 
-$runtimeReportScript = Join-Path $scriptRoot "runtime-report.ps1"
-$releaseCheckScript = Join-Path $scriptRoot "release-check.ps1"
+$generatorScript = Join-Path $scriptRoot "generate-validation-meshes.ps1"
 $preflightScript = Join-Path $scriptRoot "dev-openfoam-wsl.ps1"
 $backendScript = Join-Path $scriptRoot "dev-openfoam-backend.ps1"
-$nacaSmokeScript = Join-Path $scriptRoot "smoke-naca-openfoam.ps1"
-$badMeshSmokeScript = Join-Path $scriptRoot "smoke-bad-mesh-validation.ps1"
-$validationMeshSuiteScript = Join-Path $scriptRoot "smoke-validation-mesh-suite.ps1"
+$smokeScript = Join-Path $scriptRoot "smoke-local-openfoam.ps1"
 
-foreach ($requiredScript in @($runtimeReportScript, $releaseCheckScript, $preflightScript, $backendScript, $nacaSmokeScript, $badMeshSmokeScript, $validationMeshSuiteScript)) {
+foreach ($requiredScript in @($generatorScript, $preflightScript, $backendScript, $smokeScript)) {
     if (-not (Test-Path $requiredScript)) {
-        Fail "Missing required V1 acceptance script: $requiredScript"
+        Fail "Missing required validation suite script: $requiredScript"
     }
 }
 
-Write-Host "Running local V1 release acceptance gate..."
-
-if (-not $SkipRuntimeReport) {
-    Run-FileScript -Path $runtimeReportScript
+if (-not $SkipGenerate) {
+    Run-FileScript -Path $generatorScript -Arguments @("-OutputDir", $resolvedOutput)
 } else {
-    Write-Host "Skipping runtime report by request."
+    Write-Host "Skipping validation mesh generation by request."
 }
 
-if (-not $SkipReleaseCheck) {
-    Run-FileScript -Path $releaseCheckScript
+if (-not $SkipPreflight) {
+    Run-FileScript -Path $preflightScript -Arguments @("-CheckOnly")
 } else {
-    Write-Host "Skipping fast release check by request."
+    Write-Host "Skipping WSL/OpenFOAM preflight by request."
 }
 
-if ($SkipRealOpenFoam) {
-    Write-Host "Skipping real OpenFOAM gates by request."
-    Write-Host "PASS: Local V1 acceptance gate completed without real OpenFOAM gates." -ForegroundColor Green
-    exit 0
-}
-
-Run-FileScript -Path $preflightScript -Arguments @("-CheckOnly")
-
-$port = Get-FreeTcpPort
-$baseUrl = "http://127.0.0.1:$port"
-$stdoutLog = Join-Path $logRoot "release-v1-openfoam-backend.out.log"
-$stderrLog = Join-Path $logRoot "release-v1-openfoam-backend.err.log"
+$startedBackend = $false
+$port = $null
 $backendProcess = $null
+$baseUrl = $ApiBaseUrl
+
+if ([string]::IsNullOrWhiteSpace($baseUrl)) {
+    $port = Get-FreeTcpPort
+    $baseUrl = "http://127.0.0.1:$port"
+    $stdoutLog = Join-Path $logRoot "validation-mesh-suite-backend.out.log"
+    $stderrLog = Join-Path $logRoot "validation-mesh-suite-backend.err.log"
+    Write-Host "Starting local OpenFOAM backend for validation mesh suite on $baseUrl ..."
+    $backendProcess = Start-LocalOpenFoamBackend -BackendScript $backendScript -Port $port -StdoutLog $stdoutLog -StderrLog $stderrLog
+    $startedBackend = $true
+    Wait-LocalOpenFoamBackend -BaseUrl $baseUrl -Process $backendProcess -StdoutLog $stdoutLog -StderrLog $stderrLog
+}
 
 try {
-    Write-Host "Starting local OpenFOAM backend for real V1 gates on $baseUrl ..."
-    $backendProcess = Start-LocalOpenFoamBackend -BackendScript $backendScript -Port $port -StdoutLog $stdoutLog -StderrLog $stderrLog
-    Wait-LocalOpenFoamBackend -BaseUrl $baseUrl -Process $backendProcess -StdoutLog $stdoutLog -StderrLog $stderrLog
+    $cases = @(
+        @{ name = "cylinder"; mesh = "cylinder.msh"; timeout = $TimeoutSeconds; velocity = "15"; angle = "0"; length = "1" },
+        @{ name = "box"; mesh = "box.msh"; timeout = $TimeoutSeconds; velocity = "15"; angle = "0"; length = "1" },
+        @{ name = "naca0012"; mesh = "naca0012.msh"; timeout = $NacaTimeoutSeconds; velocity = "25"; angle = "0"; length = "1" }
+    )
 
-    Run-FileScript -Path $nacaSmokeScript -Arguments @(
-        "-ApiBaseUrl", $baseUrl,
-        "-TimeoutSeconds", [string]$NacaTimeoutSeconds,
-        "-PollIntervalSeconds", [string]$PollIntervalSeconds
-    )
-    Run-FileScript -Path $badMeshSmokeScript -Arguments @(
-        "-ApiBaseUrl", $baseUrl,
-        "-TimeoutSeconds", [string]$BadMeshTimeoutSeconds,
-        "-PollIntervalSeconds", [string]$PollIntervalSeconds
-    )
-    if ($IncludeValidationMeshSuite) {
-        Run-FileScript -Path $validationMeshSuiteScript -Arguments @(
+    foreach ($case in $cases) {
+        $meshPath = Join-Path $resolvedOutput $case.mesh
+        if (-not (Test-Path $meshPath)) {
+            Fail "Validation mesh '$($case.name)' not found at '$meshPath'."
+        }
+        Write-Host "Running validation mesh smoke: $($case.name)"
+        Run-FileScript -Path $smokeScript -Arguments @(
             "-ApiBaseUrl", $baseUrl,
-            "-TimeoutSeconds", [string]$ValidationMeshTimeoutSeconds,
-            "-NacaTimeoutSeconds", [string]$ValidationMeshNacaTimeoutSeconds,
+            "-SampleMeshPath", $meshPath,
+            "-Velocity", $case.velocity,
+            "-AngleOfAttack", $case.angle,
+            "-LengthScale", $case.length,
+            "-TimeoutSeconds", [string]$case.timeout,
             "-PollIntervalSeconds", [string]$PollIntervalSeconds,
             "-SkipPreflight"
         )
     }
 } finally {
-    Stop-PortProcess -Port $port
+    if ($startedBackend -and $port) {
+        Stop-PortProcess -Port $port
+    }
     if ($backendProcess -and -not $backendProcess.HasExited) {
         Stop-Process -Id $backendProcess.Id -Force -ErrorAction SilentlyContinue
     }
 }
 
-Write-Host "PASS: Local V1 release acceptance gate passed." -ForegroundColor Green
+Write-Host "PASS: Validation mesh suite completed for cylinder, box, and NACA 0012." -ForegroundColor Green
