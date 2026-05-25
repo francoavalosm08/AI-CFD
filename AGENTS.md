@@ -146,10 +146,10 @@ A prior agent session implemented most of Phase 3 code and docs. Fake mode was p
 
 ### Verified in current session (2026-05-24)
 
-- `py -m pytest backend` -> **103 passed**
+- `py -m pytest backend` -> **105 passed**
 - `.\scripts\runtime-report.ps1` -> **PASS**, wrote `.local-data\runtime-report.json`
 - `.\scripts\release-check.ps1` -> **PASS**
-  - backend pytest: **103 passed**
+  - backend pytest: **105 passed**
   - frontend Vitest: **8 passed**
   - fake-mode smoke: **PASS**
   - Playwright E2E: **PASS**
@@ -264,7 +264,7 @@ Optional Foam-Agent/MCP mode (requires Docker + `.env` API key):
 The latest verified baseline passed:
 
 - Python/backend prerequisite check, including Gmsh 4.13.1.
-- Backend pytest suite: **103 tests** (includes MCP, preflight, mirroring, local OpenFOAM, mesh conversion, mesh validation, force coefficients, status persistence, non-blocking archive packaging, mesh corpus/generator coverage, Phase 4/5 release contracts, release-script cleanup, and CI workflow coverage).
+- Backend pytest suite: **105 tests** (includes MCP, preflight, mirroring, local OpenFOAM, mesh conversion, mesh validation, force coefficients, status persistence, non-blocking archive packaging, mesh corpus/generator coverage, Phase 4/5 release contracts, release-script cleanup, and CI workflow coverage).
 - Frontend Vitest suite: 8 tests.
 - Fake-mode backend smoke flow (`local-verify.ps1 -Scope backend`).
 - Playwright browser E2E workflow (via full `release-check.ps1`).
@@ -300,7 +300,7 @@ Phase 3 implemented steps:
 Phase 3 sample acceptance plus Phase 4/5 local release gating are complete on this machine. Remaining product hardening steps:
 
 1. Test real user-provided `.msh` files against `docs/GMSH_AIRFOIL_2D_TEMPLATE.md`.
-2. Add richer vtk.js/PyVista-style visualization after more real user `.msh` cases prove the static outputs reliable.
+2. Add richer vtk.js/PyVista-style interactive visualization after more real user `.msh` cases prove the static binned heatmap outputs reliable.
 3. Keep `.\scripts\release-v1-local.ps1` passing after every solver-path or release-path change.
 
 Keep the API and UI stable unless the real run proves they need to change.

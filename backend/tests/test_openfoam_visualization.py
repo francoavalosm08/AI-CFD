@@ -1,7 +1,7 @@
 from pathlib import Path
 import zlib
 
-from app.openfoam.visualization import _focused_point_window, write_visualization_previews
+from app.openfoam.visualization import _field_bins, _focused_point_window, write_visualization_previews
 
 
 def _png_size(path: Path) -> tuple[int, int]:
@@ -98,6 +98,51 @@ def test_write_visualization_previews_creates_vtk_png_from_ascii_vtk_points(tmp_
     assert pressure in previews
     assert _png_size(velocity) == (900, 520)
     assert _png_size(pressure) == (900, 520)
+
+
+def test_field_bins_average_values_into_coarse_heatmap_cells() -> None:
+    visible = [
+        ((0.10, 0.10), 2.0),
+        ((0.11, 0.10), 4.0),
+        ((0.90, 0.90), 10.0),
+    ]
+
+    bins = _field_bins(visible, min_x=0, max_x=1, min_y=0, max_y=1, columns=10, rows=10)
+
+    by_cell = {(x_index, y_index): value for x_index, y_index, value in bins}
+    assert by_cell[(1, 1)] == 3.0
+    assert by_cell[(9, 9)] == 10.0
+
+
+def test_point_visualization_draws_filled_heatmap_cells_from_sparse_vtk(tmp_path: Path) -> None:
+    vtk_dir = tmp_path / "case" / "VTK"
+    vtk_dir.mkdir(parents=True)
+    (vtk_dir / "case_100.vtk").write_text(
+        "# vtk DataFile Version 2.0\n"
+        "OpenFOAM output\n"
+        "ASCII\n"
+        "DATASET POLYDATA\n"
+        "POINTS 4 float\n"
+        "0.20 0.20 0\n0.25 0.25 0\n0.75 0.75 0\n0.80 0.80 0\n"
+        "POINT_DATA 4\n"
+        "SCALARS p float 1\n"
+        "LOOKUP_TABLE default\n"
+        "0\n1\n2\n3\n",
+        encoding="utf-8",
+    )
+
+    previews = write_visualization_previews(tmp_path)
+
+    pressure = tmp_path / "pressure.png"
+    assert pressure in previews
+    rows = _png_rgb_rows(pressure)
+    field_pixels = [
+        rows[y][x]
+        for y in range(80, 440)
+        for x in range(80, 800)
+        if rows[y][x] != (248, 250, 252)
+    ]
+    assert len(field_pixels) > 200
 
 
 def test_write_visualization_previews_skips_binary_vtk_without_hanging(tmp_path: Path) -> None:

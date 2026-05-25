@@ -10,6 +10,8 @@ from pathlib import Path
 WIDTH = 900
 HEIGHT = 520
 MARGIN = 58
+FIELD_COLUMNS = 64
+FIELD_ROWS = 36
 
 
 def write_visualization_previews(run_dir: Path) -> list[Path]:
@@ -262,6 +264,9 @@ def _write_point_plot(
         _write_png(path, image)
         return
     min_value, max_value = min(value for _, value in visible), max(value for _, value in visible)
+    bins = _field_bins(visible, min_x=min_x, max_x=max_x, min_y=min_y, max_y=max_y)
+    if bins:
+        _draw_field_bins(image, bins, min_value, max_value)
     for (x, y), value in visible:
         px = _scale(x, min_x, max_x, MARGIN, WIDTH - MARGIN)
         py = _scale(y, min_y, max_y, HEIGHT - MARGIN, MARGIN)
@@ -273,6 +278,50 @@ def _write_point_plot(
     _draw_text(image, MARGIN, 24, title, (15, 23, 42), scale=3)
     _draw_text(image, WIDTH - 240, HEIGHT - 18, f"visible min {min_value:.4g}  max {max_value:.4g}", (71, 85, 105))
     _write_png(path, image)
+
+
+def _field_bins(
+    visible: list[tuple[tuple[float, float], float]],
+    *,
+    min_x: float,
+    max_x: float,
+    min_y: float,
+    max_y: float,
+    columns: int = FIELD_COLUMNS,
+    rows: int = FIELD_ROWS,
+) -> list[tuple[int, int, float]]:
+    if columns <= 0 or rows <= 0 or max_x == min_x or max_y == min_y:
+        return []
+    accumulators: dict[tuple[int, int], tuple[float, int]] = {}
+    for (x, y), value in visible:
+        x_index = min(columns - 1, max(0, int((x - min_x) / (max_x - min_x) * columns)))
+        y_index = min(rows - 1, max(0, int((y - min_y) / (max_y - min_y) * rows)))
+        total, count = accumulators.get((x_index, y_index), (0.0, 0))
+        accumulators[(x_index, y_index)] = (total + value, count + 1)
+    return [
+        (x_index, y_index, total / count)
+        for (x_index, y_index), (total, count) in sorted(accumulators.items())
+        if count > 0
+    ]
+
+
+def _draw_field_bins(
+    image: list[bytearray],
+    bins: list[tuple[int, int, float]],
+    min_value: float,
+    max_value: float,
+    *,
+    columns: int = FIELD_COLUMNS,
+    rows: int = FIELD_ROWS,
+) -> None:
+    plot_width = WIDTH - 2 * MARGIN
+    plot_height = HEIGHT - 2 * MARGIN
+    for x_index, y_index, value in bins:
+        x0 = int(MARGIN + x_index * plot_width / columns)
+        x1 = int(MARGIN + (x_index + 1) * plot_width / columns) + 1
+        y0 = int(HEIGHT - MARGIN - (y_index + 1) * plot_height / rows)
+        y1 = int(HEIGHT - MARGIN - y_index * plot_height / rows) + 1
+        _draw_rect(image, x0, y0, x1, y1, _color_ramp(value, min_value, max_value))
 
 
 def _focused_point_window(
@@ -398,6 +447,23 @@ def _draw_disc(image: list[bytearray], cx: int, cy: int, radius: int, color: tup
         for x in range(cx - radius, cx + radius + 1):
             if (x - cx) ** 2 + (y - cy) ** 2 <= radius * radius:
                 _set_pixel(image, x, y, color)
+
+
+def _draw_rect(
+    image: list[bytearray],
+    x0: int,
+    y0: int,
+    x1: int,
+    y1: int,
+    color: tuple[int, int, int],
+) -> None:
+    bounded_x0 = max(0, min(WIDTH, x0))
+    bounded_x1 = max(0, min(WIDTH, x1))
+    bounded_y0 = max(0, min(HEIGHT, y0))
+    bounded_y1 = max(0, min(HEIGHT, y1))
+    for y in range(bounded_y0, bounded_y1):
+        for x in range(bounded_x0, bounded_x1):
+            _set_pixel(image, x, y, color)
 
 
 def _draw_text(
