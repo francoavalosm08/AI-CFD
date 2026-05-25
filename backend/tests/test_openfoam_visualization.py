@@ -1,7 +1,12 @@
 from pathlib import Path
 import zlib
 
-from app.openfoam.visualization import _field_bins, _focused_point_window, write_visualization_previews
+from app.openfoam.visualization import (
+    BODY_FILL_COLOR,
+    _field_bins,
+    _focused_point_window,
+    write_visualization_previews,
+)
 
 
 def _png_size(path: Path) -> tuple[int, int]:
@@ -143,6 +148,41 @@ def test_point_visualization_draws_filled_heatmap_cells_from_sparse_vtk(tmp_path
         if rows[y][x] != (248, 250, 252)
     ]
     assert len(field_pixels) > 200
+
+
+def test_point_visualization_fills_airfoil_body_instead_of_leaving_white_canvas(tmp_path: Path) -> None:
+    vtk_dir = tmp_path / "case" / "VTK"
+    airfoil_dir = vtk_dir / "airfoil"
+    airfoil_dir.mkdir(parents=True)
+    (vtk_dir / "case_100.vtk").write_text(
+        "# vtk DataFile Version 2.0\n"
+        "OpenFOAM output\n"
+        "ASCII\n"
+        "DATASET POLYDATA\n"
+        "POINTS 4 float\n"
+        "0 0 0\n1 0 0\n1 1 0\n0 1 0\n"
+        "POINT_DATA 4\n"
+        "SCALARS p float 1\n"
+        "LOOKUP_TABLE default\n"
+        "0\n1\n2\n3\n",
+        encoding="utf-8",
+    )
+    (airfoil_dir / "airfoil_100.vtk").write_text(
+        "# vtk DataFile Version 2.0\n"
+        "airfoil\n"
+        "ASCII\n"
+        "DATASET POLYDATA\n"
+        "POINTS 4 float\n"
+        "0.40 0.40 0\n0.60 0.40 0\n0.60 0.60 0\n0.40 0.60 0\n",
+        encoding="utf-8",
+    )
+
+    previews = write_visualization_previews(tmp_path)
+
+    pressure = tmp_path / "pressure.png"
+    assert pressure in previews
+    rows = _png_rgb_rows(pressure)
+    assert rows[260][450] == BODY_FILL_COLOR
 
 
 def test_write_visualization_previews_skips_binary_vtk_without_hanging(tmp_path: Path) -> None:

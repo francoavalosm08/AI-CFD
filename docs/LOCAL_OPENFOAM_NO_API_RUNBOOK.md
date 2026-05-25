@@ -195,7 +195,7 @@ The repo currently has:
 - first real smoke mesh source in `samples/external_box.geo`
 - generated NACA 4412 validation mesh/report scripts
 - 2D airfoil patch handling for `airfoil`, `inlet`, `outlet`, `farfield`, and `frontAndBack`
-- automatic PNG previews from OpenFOAM outputs: residual plot from `residuals.csv`, and pressure/velocity binned heatmap previews from ASCII VTK
+- automatic PNG previews from OpenFOAM outputs: residual plot from `residuals.csv`, and pressure/velocity binned heatmap previews from ASCII VTK with the solid airfoil/obstacle body filled from patch VTK points
 - WSL-native staging under `/tmp/ai-cfd-workbench/<run_id>/case` for real runs, with copy-back into `.local-data/runs/<run_id>/case`
 - pre-run `.msh` physical-name validation for the `airfoil_2d` template
 - OpenFOAM `forceCoeffs` setup for `airfoil_2d` and final coefficient parsing

@@ -12,6 +12,8 @@ HEIGHT = 520
 MARGIN = 58
 FIELD_COLUMNS = 64
 FIELD_ROWS = 36
+BODY_FILL_COLOR = (30, 41, 59)
+BODY_OUTLINE_COLOR = (15, 23, 42)
 
 
 def write_visualization_previews(run_dir: Path) -> list[Path]:
@@ -139,16 +141,17 @@ def _find_latest_case_vtk(vtk_dir: Path) -> Path | None:
 
 
 def _read_focus_points(vtk_dir: Path) -> list[tuple[float, float]]:
-    airfoil_dir = vtk_dir / "airfoil"
-    if not airfoil_dir.exists():
-        return []
-    candidates = sorted(
-        (path for path in airfoil_dir.glob("airfoil_*.vtk") if path.is_file()),
-        key=lambda path: _vtk_time_index(path),
-    )
-    if not candidates:
-        return []
-    return _read_ascii_vtk(candidates[-1]).points
+    for patch_name in ["airfoil", "obstacle"]:
+        patch_dir = vtk_dir / patch_name
+        if not patch_dir.exists():
+            continue
+        candidates = sorted(
+            (path for path in patch_dir.glob(f"{patch_name}_*.vtk") if path.is_file()),
+            key=lambda path: _vtk_time_index(path),
+        )
+        if candidates:
+            return _read_ascii_vtk(candidates[-1]).points
+    return []
 
 
 def _vtk_time_index(path: Path) -> int:
@@ -272,12 +275,71 @@ def _write_point_plot(
         py = _scale(y, min_y, max_y, HEIGHT - MARGIN, MARGIN)
         _draw_disc(image, int(px), int(py), 2, _color_ramp(value, min_value, max_value))
     if focus_points:
+        _draw_focus_body(image, focus_points, min_x, max_x, min_y, max_y)
         _draw_focus_points(image, focus_points, min_x, max_x, min_y, max_y)
     _draw_axes(image)
     _draw_color_legend(image, min_value, max_value)
     _draw_text(image, MARGIN, 24, title, (15, 23, 42), scale=3)
     _draw_text(image, WIDTH - 240, HEIGHT - 18, f"visible min {min_value:.4g}  max {max_value:.4g}", (71, 85, 105))
     _write_png(path, image)
+
+
+def _draw_focus_body(
+    image: list[bytearray],
+    focus_points: list[tuple[float, float]],
+    min_x: float,
+    max_x: float,
+    min_y: float,
+    max_y: float,
+) -> None:
+    polygon = _scaled_focus_polygon(focus_points, min_x, max_x, min_y, max_y)
+    if len(polygon) < 3:
+        return
+    _draw_polygon(image, polygon, BODY_FILL_COLOR)
+
+
+def _scaled_focus_polygon(
+    focus_points: list[tuple[float, float]],
+    min_x: float,
+    max_x: float,
+    min_y: float,
+    max_y: float,
+) -> list[tuple[int, int]]:
+    points = []
+    seen = set()
+    for x, y in focus_points:
+        if not (min_x <= x <= max_x and min_y <= y <= max_y):
+            continue
+        px = int(_scale(x, min_x, max_x, MARGIN, WIDTH - MARGIN))
+        py = int(_scale(y, min_y, max_y, HEIGHT - MARGIN, MARGIN))
+        if (px, py) in seen:
+            continue
+        seen.add((px, py))
+        points.append((px, py))
+    if len(points) < 3:
+        return []
+    center_x = sum(x for x, _ in points) / len(points)
+    center_y = sum(y for _, y in points) / len(points)
+    return sorted(points, key=lambda point: math.atan2(point[1] - center_y, point[0] - center_x))
+
+
+def _draw_polygon(image: list[bytearray], polygon: list[tuple[int, int]], color: tuple[int, int, int]) -> None:
+    min_y = max(0, min(y for _, y in polygon))
+    max_y = min(HEIGHT - 1, max(y for _, y in polygon))
+    edges = list(zip(polygon, polygon[1:] + polygon[:1]))
+    for y in range(min_y, max_y + 1):
+        intersections = []
+        for (x0, y0), (x1, y1) in edges:
+            if y0 == y1:
+                continue
+            lower_y, upper_y = sorted((y0, y1))
+            if not (lower_y <= y < upper_y):
+                continue
+            t = (y - y0) / (y1 - y0)
+            intersections.append(x0 + t * (x1 - x0))
+        intersections.sort()
+        for start, end in zip(intersections[0::2], intersections[1::2]):
+            _draw_line(image, int(math.ceil(start)), y, int(math.floor(end)), y, color)
 
 
 def _field_bins(
@@ -399,7 +461,7 @@ def _draw_focus_points(
             continue
         px = int(_scale(x, min_x, max_x, MARGIN, WIDTH - MARGIN))
         py = int(_scale(y, min_y, max_y, HEIGHT - MARGIN, MARGIN))
-        _draw_disc(image, px, py, 2, (15, 23, 42))
+        _draw_disc(image, px, py, 2, BODY_OUTLINE_COLOR)
 
 
 def _plot_x(index: int, max_index: int) -> int:

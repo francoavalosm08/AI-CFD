@@ -55,7 +55,7 @@ This is a simplified roadmap for non-software stakeholders, while keeping the ke
 - OpenFOAM command manifest and dry-run mode.
 - Log/residual/artifact parsing.
 - Automatic local HTML report generation from OpenFOAM run files.
-- Automatic PNG visual previews from OpenFOAM outputs: residual plot, velocity magnitude binned heatmap, and pressure binned heatmap.
+- Automatic PNG visual previews from OpenFOAM outputs: residual plot, velocity magnitude binned heatmap, pressure binned heatmap, and filled solid-body masks for airfoil/obstacle patches.
 - No-API dry-run smoke script.
 - OpenFOAM 10 installed and sourceable in WSL `Ubuntu-22.04`.
 - Committed sample geometry source: `samples/external_box.geo`.

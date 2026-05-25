@@ -96,7 +96,7 @@ The V1 viewer intentionally uses lightweight static PNGs:
 - `residuals.png`
 - `force-coefficients.png`
 
-Pressure and velocity previews are generated from ASCII OpenFOAM VTK point data as coarse binned heatmaps, with solver sample points and the airfoil/obstacle focus overlay still visible.
+Pressure and velocity previews are generated from ASCII OpenFOAM VTK point data as coarse binned heatmaps, with the solid airfoil/obstacle body filled from patch VTK points and the focus outline still visible.
 
 The browser dashboard now lets users inspect those PNG artifacts in a larger preview dialog and open the raw image artifact directly.
 

@@ -95,7 +95,7 @@ Do not accept future NACA validation runs as successful if `checkMesh` fails, Op
   - Box run `6becac7e-ca65-46f2-afcc-2ddcce2eccbf`: `checkMesh` passed, `4,456` cells, final OpenFOAM-derived `Cl=-153.1205`, `Cd=3585.132`, `Cm=75.39039`.
   - NACA 0012 run `99161bd3-14f4-408d-ab1f-74ac65819f6f`: `checkMesh` passed, `58,364` cells, final OpenFOAM-derived `Cl=-0.02131213`, `Cd=0.0132719`, `Cm=-0.005501089`.
 - `scripts\release-v1-local.ps1 -IncludeValidationMeshSuite` includes the heavier generated three-mesh suite in the full local acceptance gate.
-- Static PNG previews now use visible VTK values for pressure/velocity color scaling, include a color legend, and overlay the focused body points when available.
+- Static PNG previews now use visible VTK values for pressure/velocity color scaling, include a color legend, fill the solid airfoil/obstacle body when patch VTK is available, and overlay the focused body points.
 
 ## Recent Work (Phase 3 — 2026-05-22)
 
@@ -146,10 +146,10 @@ A prior agent session implemented most of Phase 3 code and docs. Fake mode was p
 
 ### Verified in current session (2026-05-24)
 
-- `py -m pytest backend` -> **105 passed**
+- `py -m pytest backend` -> **106 passed**
 - `.\scripts\runtime-report.ps1` -> **PASS**, wrote `.local-data\runtime-report.json`
 - `.\scripts\release-check.ps1` -> **PASS**
-  - backend pytest: **105 passed**
+  - backend pytest: **106 passed**
   - frontend Vitest: **8 passed**
   - fake-mode smoke: **PASS**
   - Playwright E2E: **PASS**
@@ -264,7 +264,7 @@ Optional Foam-Agent/MCP mode (requires Docker + `.env` API key):
 The latest verified baseline passed:
 
 - Python/backend prerequisite check, including Gmsh 4.13.1.
-- Backend pytest suite: **105 tests** (includes MCP, preflight, mirroring, local OpenFOAM, mesh conversion, mesh validation, force coefficients, status persistence, non-blocking archive packaging, mesh corpus/generator coverage, Phase 4/5 release contracts, release-script cleanup, and CI workflow coverage).
+- Backend pytest suite: **106 tests** (includes MCP, preflight, mirroring, local OpenFOAM, mesh conversion, mesh validation, force coefficients, status persistence, non-blocking archive packaging, mesh corpus/generator coverage, Phase 4/5 release contracts, release-script cleanup, and CI workflow coverage).
 - Frontend Vitest suite: 8 tests.
 - Fake-mode backend smoke flow (`local-verify.ps1 -Scope backend`).
 - Playwright browser E2E workflow (via full `release-check.ps1`).
