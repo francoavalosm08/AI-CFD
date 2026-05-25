@@ -78,6 +78,8 @@ Downloaded mesh corpus and generated working validation meshes:
 .\scripts\smoke-local-openfoam.ps1 -SampleMeshPath .local-data\validation-meshes\naca0012.msh -TimeoutSeconds 1800
 ```
 
+The validation suite writes `.local-data\validation-meshes\validation-suite-report.json` so run IDs, artifact counts, event counts, case types, cell counts, and final coefficients can be reviewed later.
+
 Full local V1 release acceptance:
 
 ```powershell

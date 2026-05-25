@@ -118,6 +118,8 @@ To include the heavier generated three-mesh suite in the full local V1 gate:
 .\scripts\release-v1-local.ps1 -IncludeValidationMeshSuite
 ```
 
+The standalone suite writes `.local-data\validation-meshes\validation-suite-report.json` with the real run IDs, artifact counts, event counts, case types, cell counts, and final coefficients.
+
 For your own meshes:
 
 ```powershell

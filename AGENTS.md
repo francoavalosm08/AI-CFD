@@ -146,11 +146,11 @@ A prior agent session implemented most of Phase 3 code and docs. Fake mode was p
 
 ### Verified in current session (2026-05-24)
 
-- `py -m pytest backend` -> **101 passed**
+- `py -m pytest backend` -> **103 passed**
 - `.\scripts\runtime-report.ps1` -> **PASS**, wrote `.local-data\runtime-report.json`
 - `.\scripts\release-check.ps1` -> **PASS**
-  - backend pytest: **101 passed**
-  - frontend Vitest: **7 passed**
+  - backend pytest: **103 passed**
+  - frontend Vitest: **8 passed**
   - fake-mode smoke: **PASS**
   - Playwright E2E: **PASS**
   - local OpenFOAM dry-run smoke: **PASS**
@@ -264,7 +264,7 @@ Optional Foam-Agent/MCP mode (requires Docker + `.env` API key):
 The latest verified baseline passed:
 
 - Python/backend prerequisite check, including Gmsh 4.13.1.
-- Backend pytest suite: **101 tests** (includes MCP, preflight, mirroring, local OpenFOAM, mesh conversion, mesh validation, force coefficients, status persistence, non-blocking archive packaging, mesh corpus/generator coverage, Phase 4/5 release contracts, release-script cleanup, and CI workflow coverage).
+- Backend pytest suite: **103 tests** (includes MCP, preflight, mirroring, local OpenFOAM, mesh conversion, mesh validation, force coefficients, status persistence, non-blocking archive packaging, mesh corpus/generator coverage, Phase 4/5 release contracts, release-script cleanup, and CI workflow coverage).
 - Frontend Vitest suite: 8 tests.
 - Fake-mode backend smoke flow (`local-verify.ps1 -Scope backend`).
 - Playwright browser E2E workflow (via full `release-check.ps1`).

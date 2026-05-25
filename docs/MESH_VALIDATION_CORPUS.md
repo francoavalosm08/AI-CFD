@@ -48,6 +48,8 @@ To generate and run all three working meshes through real OpenFOAM in one comman
 .\scripts\smoke-validation-mesh-suite.ps1
 ```
 
+The suite writes `.local-data\validation-meshes\validation-suite-report.json` with each case name, mesh path, run id, upload id, case type, cell count, artifact count, event count, artifact names, and final `Cl/Cd/Cm` values when OpenFOAM produced force coefficients.
+
 To include that heavier gate inside the full local V1 release acceptance:
 
 ```powershell

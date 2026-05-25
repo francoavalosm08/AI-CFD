@@ -36,6 +36,18 @@ def test_local_openfoam_smoke_checks_force_outputs_for_any_enabled_case() -> Non
     assert "final_coefficients" in script
 
 
+def test_local_openfoam_smoke_can_write_structured_result_json() -> None:
+    script = (REPO_ROOT / "scripts" / "smoke-local-openfoam.ps1").read_text(encoding="utf-8")
+
+    assert "ResultPath" in script
+    assert "run_id" in script
+    assert "upload_id" in script
+    assert "artifact_count" in script
+    assert "event_count" in script
+    assert "artifact_names" in script
+    assert "ConvertTo-Json -Depth 20" in script
+
+
 def test_validation_mesh_suite_runs_three_real_openfoam_smokes() -> None:
     script = (REPO_ROOT / "scripts" / "smoke-validation-mesh-suite.ps1").read_text(encoding="utf-8")
     runbook = (REPO_ROOT / "docs" / "LOCAL_OPENFOAM_NO_API_RUNBOOK.md").read_text(encoding="utf-8")
@@ -48,3 +60,17 @@ def test_validation_mesh_suite_runs_three_real_openfoam_smokes() -> None:
     assert "naca0012.msh" in script
     assert "NacaTimeoutSeconds" in script
     assert "smoke-validation-mesh-suite.ps1" in runbook
+
+
+def test_validation_mesh_suite_writes_aggregate_report() -> None:
+    script = (REPO_ROOT / "scripts" / "smoke-validation-mesh-suite.ps1").read_text(encoding="utf-8")
+    corpus_doc = (REPO_ROOT / "docs" / "MESH_VALIDATION_CORPUS.md").read_text(encoding="utf-8")
+
+    assert "ReportPath" in script
+    assert "validation-suite-report.json" in script
+    assert "-ResultPath" in script
+    assert "artifact_count" in script
+    assert "event_count" in script
+    assert "case_type" in script
+    assert "final_coefficients" in script
+    assert "validation-suite-report.json" in corpus_doc

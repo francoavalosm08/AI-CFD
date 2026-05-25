@@ -8,7 +8,8 @@ param(
     [int]$TimeoutSeconds = 120,
     [int]$PollIntervalSeconds = 1,
     [switch]$DryRun,
-    [switch]$SkipPreflight
+    [switch]$SkipPreflight,
+    [string]$ResultPath = ""
 )
 
 Set-StrictMode -Version Latest
@@ -286,4 +287,28 @@ if ($eventLines.Count -eq 0) {
 Write-Host ("[ok] Event stream returned {0} status messages." -f $eventLines.Count)
 
 $modeText = if ($DryRun) { "dry-run" } else { "real" }
+if (-not [string]::IsNullOrWhiteSpace($ResultPath)) {
+    $resolvedResultPath = if ([System.IO.Path]::IsPathRooted($ResultPath)) { $ResultPath } else { Join-Path $repoRoot $ResultPath }
+    $resultParent = Split-Path -Parent $resolvedResultPath
+    if (-not [string]::IsNullOrWhiteSpace($resultParent)) {
+        New-Item -ItemType Directory -Force -Path $resultParent | Out-Null
+    }
+    $result = [ordered]@{
+        status = "passed"
+        mode = $modeText
+        dry_run = [bool]$DryRun
+        api_base_url = $ApiBaseUrl
+        runner_mode = $runnerMode
+        mesh_path = $resolvedMesh
+        upload_id = [string]$upload.id
+        run_id = [string]$runId
+        run_status = [string]$run.status
+        artifact_count = [int]$artifacts.Count
+        event_count = [int]$eventLines.Count
+        artifact_names = @($names)
+        summary = $run.summary
+    }
+    ($result | ConvertTo-Json -Depth 20) | Set-Content -Path $resolvedResultPath -Encoding utf8
+    Write-Host "[ok] Wrote smoke result: $resolvedResultPath"
+}
 Write-Host ("PASS: Local OpenFOAM {0} smoke flow succeeded for run {1}." -f $modeText, $runId) -ForegroundColor Green

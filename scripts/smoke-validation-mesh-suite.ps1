@@ -2,6 +2,7 @@
 param(
     [string]$ApiBaseUrl = "",
     [string]$OutputDir = ".local-data\validation-meshes",
+    [string]$ReportPath = "",
     [int]$TimeoutSeconds = 900,
     [int]$NacaTimeoutSeconds = 1800,
     [int]$PollIntervalSeconds = 5,
@@ -49,6 +50,14 @@ function Get-Health {
     } catch {
         return $null
     }
+}
+
+function Test-JsonProperty {
+    param(
+        $Object,
+        [Parameter(Mandatory = $true)][string]$Name
+    )
+    return $null -ne $Object -and ($Object.PSObject.Properties.Name -contains $Name)
 }
 
 function Run-FileScript {
@@ -125,6 +134,13 @@ function Wait-LocalOpenFoamBackend {
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repoRoot = (Resolve-Path (Join-Path $scriptRoot "..")).Path
 $resolvedOutput = if ([System.IO.Path]::IsPathRooted($OutputDir)) { $OutputDir } else { Join-Path $repoRoot $OutputDir }
+$resolvedReportPath = if ([string]::IsNullOrWhiteSpace($ReportPath)) {
+    Join-Path $resolvedOutput "validation-suite-report.json"
+} elseif ([System.IO.Path]::IsPathRooted($ReportPath)) {
+    $ReportPath
+} else {
+    Join-Path $repoRoot $ReportPath
+}
 $logRoot = Join-Path $repoRoot ".local-data\verify-logs"
 New-Item -ItemType Directory -Force -Path $logRoot | Out-Null
 
@@ -173,12 +189,15 @@ try {
         @{ name = "box"; mesh = "box.msh"; timeout = $TimeoutSeconds; velocity = "15"; angle = "0"; length = "1" },
         @{ name = "naca0012"; mesh = "naca0012.msh"; timeout = $NacaTimeoutSeconds; velocity = "25"; angle = "0"; length = "1" }
     )
+    $caseReports = @()
 
     foreach ($case in $cases) {
         $meshPath = Join-Path $resolvedOutput $case.mesh
         if (-not (Test-Path $meshPath)) {
             Fail "Validation mesh '$($case.name)' not found at '$meshPath'."
         }
+        $caseResultPath = Join-Path $logRoot ("validation-suite-{0}-result.json" -f $case.name)
+        Remove-Item $caseResultPath -ErrorAction SilentlyContinue
         Write-Host "Running validation mesh smoke: $($case.name)"
         Run-FileScript -Path $smokeScript -Arguments @(
             "-ApiBaseUrl", $baseUrl,
@@ -188,9 +207,48 @@ try {
             "-LengthScale", $case.length,
             "-TimeoutSeconds", [string]$case.timeout,
             "-PollIntervalSeconds", [string]$PollIntervalSeconds,
-            "-SkipPreflight"
+            "-SkipPreflight",
+            "-ResultPath", $caseResultPath
         )
+        if (-not (Test-Path $caseResultPath)) {
+            Fail "Validation smoke for '$($case.name)' did not write result JSON at '$caseResultPath'."
+        }
+
+        $smokeResult = Get-Content $caseResultPath -Raw | ConvertFrom-Json
+        $summary = $smokeResult.summary
+        $manifest = if (Test-JsonProperty -Object $summary -Name "manifest") { $summary.manifest } else { $null }
+        $checkMesh = if (Test-JsonProperty -Object $summary -Name "check_mesh_summary") { $summary.check_mesh_summary } else { $null }
+        $caseType = if (Test-JsonProperty -Object $manifest -Name "case_type") { [string]$manifest.case_type } else { "" }
+        $cells = if (Test-JsonProperty -Object $checkMesh -Name "cells") { $checkMesh.cells } else { $null }
+        $finalCoefficients = if (Test-JsonProperty -Object $summary -Name "final_coefficients") { $summary.final_coefficients } else { $null }
+
+        $caseReports += [ordered]@{
+            name = [string]$case.name
+            mesh_path = $meshPath
+            status = "passed"
+            run_id = [string]$smokeResult.run_id
+            upload_id = [string]$smokeResult.upload_id
+            case_type = $caseType
+            artifact_count = [int]$smokeResult.artifact_count
+            event_count = [int]$smokeResult.event_count
+            cells = $cells
+            final_coefficients = $finalCoefficients
+            artifact_names = @($smokeResult.artifact_names)
+        }
     }
+
+    $reportParent = Split-Path -Parent $resolvedReportPath
+    if (-not [string]::IsNullOrWhiteSpace($reportParent)) {
+        New-Item -ItemType Directory -Force -Path $reportParent | Out-Null
+    }
+    $suiteReport = [ordered]@{
+        generated_at_utc = (Get-Date).ToUniversalTime().ToString("o")
+        api_base_url = $baseUrl
+        output_dir = $resolvedOutput
+        cases = @($caseReports)
+    }
+    ($suiteReport | ConvertTo-Json -Depth 30) | Set-Content -Path $resolvedReportPath -Encoding utf8
+    Write-Host "[ok] Wrote validation suite report: $resolvedReportPath"
 } finally {
     if ($startedBackend -and $port) {
         Stop-PortProcess -Port $port
