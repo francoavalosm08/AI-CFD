@@ -13,11 +13,12 @@ Run:
 .\scripts\download-mesh-corpus.ps1
 ```
 
-This downloads three public Gmsh `.msh` files from John Burkardt / FSU:
+This downloads public Gmsh `.msh` files from John Burkardt / FSU:
 
 - `cylinder_2d.msh`
 - `rectangle.msh`
 - `step_2d.msh`
+- `airfoil_exterior.msh`
 
 The files are written under `.local-data\external-mesh-corpus\`, with a `manifest.json` containing source URL, source label, license note, SHA-256 checksum, detected format, node/element counts, and V1 solver-readiness classification.
 

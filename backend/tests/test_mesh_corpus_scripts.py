@@ -11,6 +11,8 @@ def test_download_mesh_corpus_script_records_provenance_and_classification() -> 
     assert "cylinder_2d.msh" in script
     assert "rectangle.msh" in script
     assert "step_2d.msh" in script
+    assert "airfoil_exterior.msh" in script
+    assert "examples/gmsh" in script
     assert "classify_msh_file" in script
     assert "sha256" in script
 

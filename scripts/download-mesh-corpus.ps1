@@ -36,6 +36,12 @@ $sources = @(
         url = "https://people.sc.fsu.edu/~jburkardt/data/msh/step_2d.msh"
         source = "John Burkardt / FSU Gmsh MSH sample data"
         license = "GNU LGPL, per source page"
+    },
+    @{
+        name = "airfoil_exterior.msh"
+        url = "https://people.sc.fsu.edu/~jburkardt/examples/gmsh/airfoil_exterior.msh"
+        source = "John Burkardt / FSU Gmsh example data"
+        license = "GNU LGPL, per source page"
     }
 )
 
