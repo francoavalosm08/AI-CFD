@@ -11,7 +11,7 @@ Automating CFD with a local browser app for external-aerodynamics runs through O
 
 ## Project Handoff And Docs
 
-Fresh LLM/coding-agent pickup instructions are in `AGENTS.md`. The docs index is in `docs/README.md`, with the current roadmap in `docs/EXTERNAL_AERO_V1_ROADMAP.md`. The local OpenFOAM implementation plan is in `docs/PHASE_3_REAL_FOAMAGENT_OPENFOAM_PLAN.md` and does not require a runtime API key.
+Fresh LLM/coding-agent pickup instructions are in `AGENTS.md`. Clone/setup/verification instructions for a fresh AI agent or new machine are in `docs/AI_AGENT_CLONE_AND_VERIFY.md`. The docs index is in `docs/README.md`, with the current roadmap in `docs/EXTERNAL_AERO_V1_ROADMAP.md`. The local OpenFOAM implementation plan is in `docs/PHASE_3_REAL_FOAMAGENT_OPENFOAM_PLAN.md` and does not require a runtime API key.
 
 ## Local Non-Docker Development (Windows + Fake Mode)
 

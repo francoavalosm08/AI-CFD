@@ -3,15 +3,16 @@
 Read these docs in this order when picking up the project.
 
 1. `../AGENTS.md` - fresh LLM/coding-agent handoff, current state, next milestone, and verification rules.
-2. `PROJECT_OVERVIEW_AND_RUNBOOK.md` - architecture, run commands, environment notes, and operating procedures.
-3. `PHASES_SUMMARY.md` - compact phase-by-phase record of what has been done.
-4. `EXTERNAL_AERO_V1_ROADMAP.md` - active roadmap from the current prototype to usable external-aero V1.
-5. `PHASE_3_REAL_FOAMAGENT_OPENFOAM_PLAN.md` - detailed Phase 3 plan, now focused on local OpenFOAM without runtime API keys.
-6. `LOCAL_OPENFOAM_NO_API_RUNBOOK.md` - no-API local OpenFOAM workflow and troubleshooting.
-7. `GMSH_AIRFOIL_2D_TEMPLATE.md` - required Gmsh physical names and mesh contract for production `.msh` uploads.
-8. `MESH_VALIDATION_CORPUS.md` - downloaded public mesh corpus, generated working validation meshes, and acceptance rules.
-9. `REAL_MODE_RUNBOOK.md` - optional Foam-Agent/MCP startup, health checks, and troubleshooting.
-10. `PHASE_2_PLANNING_DRAFT.md` - earlier planning details and risk analysis.
+2. `AI_AGENT_CLONE_AND_VERIFY.md` - exact clone/setup/verification commands for fresh AI agents and new machines.
+3. `PROJECT_OVERVIEW_AND_RUNBOOK.md` - architecture, run commands, environment notes, and operating procedures.
+4. `PHASES_SUMMARY.md` - compact phase-by-phase record of what has been done.
+5. `EXTERNAL_AERO_V1_ROADMAP.md` - active roadmap from the current prototype to usable external-aero V1.
+6. `PHASE_3_REAL_FOAMAGENT_OPENFOAM_PLAN.md` - detailed Phase 3 plan, now focused on local OpenFOAM without runtime API keys.
+7. `LOCAL_OPENFOAM_NO_API_RUNBOOK.md` - no-API local OpenFOAM workflow and troubleshooting.
+8. `GMSH_AIRFOIL_2D_TEMPLATE.md` - required Gmsh physical names and mesh contract for production `.msh` uploads.
+9. `MESH_VALIDATION_CORPUS.md` - downloaded public mesh corpus, generated working validation meshes, and acceptance rules.
+10. `REAL_MODE_RUNBOOK.md` - optional Foam-Agent/MCP startup, health checks, and troubleshooting.
+11. `PHASE_2_PLANNING_DRAFT.md` - earlier planning details and risk analysis.
 
 ## Current Product Direction
 

@@ -245,6 +245,7 @@ The app currently supports:
 Start with these files:
 
 - `README.md`: setup, local run, Docker notes, and verification commands.
+- `docs/AI_AGENT_CLONE_AND_VERIFY.md`: exact clone, setup, and clean-verification commands for fresh AI agents and new machines.
 - `docs/README.md`: docs index and reading order.
 - `docs/PROJECT_OVERVIEW_AND_RUNBOOK.md`: full architecture and operating runbook.
 - `docs/PHASES_SUMMARY.md`: what was completed and planned by phase.
