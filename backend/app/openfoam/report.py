@@ -18,7 +18,6 @@ def write_run_report(
     force_rows = _read_force_rows(run_dir / "forceCoeffs.csv")
     check_mesh_text = (run_dir / "checkMesh.log").read_text(errors="replace") if (run_dir / "checkMesh.log").exists() else ""
     check_mesh_summary = parse_check_mesh_summary(check_mesh_text)
-    solver_tail = _tail(run_dir / "solver.log", 44)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(
         _html(
@@ -28,7 +27,6 @@ def write_run_report(
             force_rows=force_rows,
             check_mesh_text=check_mesh_text,
             check_mesh_summary=check_mesh_summary,
-            solver_tail=solver_tail,
             run_dir=run_dir,
         ),
         encoding="utf-8",
@@ -50,12 +48,6 @@ def _read_force_rows(path: Path) -> list[dict[str, str]]:
         return list(csv.DictReader(handle))
 
 
-def _tail(path: Path, lines: int) -> str:
-    if not path.exists():
-        return ""
-    return "\n".join(path.read_text(errors="replace").splitlines()[-lines:])
-
-
 def _html(
     *,
     title: str,
@@ -64,32 +56,11 @@ def _html(
     force_rows: list[dict[str, str]],
     check_mesh_text: str,
     check_mesh_summary: dict,
-    solver_tail: str,
     run_dir: Path,
 ) -> str:
     final_residuals: dict[str, str] = {}
     for row in residual_rows:
         final_residuals[row["field"]] = row["final"]
-    artifact_names = [
-        "pressure.png",
-        "velocity-magnitude.png",
-        "residuals.png",
-        "force-coefficients.png",
-        "solver.log",
-        "checkMesh.log",
-        "residuals.csv",
-        "forceCoeffs.dat",
-        "forceCoeffs.csv",
-        "mesh-validation.json",
-        "checkMesh-summary.json",
-        "openfoam-commands.json",
-        "openfoam-case.zip",
-    ]
-    artifact_links = []
-    for name in artifact_names:
-        path = run_dir / name
-        if path.exists():
-            artifact_links.append(f'<li><a href="{html.escape(name, quote=True)}">{html.escape(name)}</a></li>')
     image_cards = []
     for path in sorted(run_dir.glob("*.png")):
         src = html.escape(path.name, quote=True)
@@ -148,7 +119,5 @@ a{{color:#075985}}
 <div class="card"><h2>Visual previews</h2>{''.join(image_cards) or '<p class="muted">No PNG previews were generated.</p>'}</div>
 <div class="card"><h2>Final residuals</h2><table><tr><th>Field</th><th>Final residual</th></tr>{residual_table}</table></div>
 <div class="card"><h2>Final force coefficients</h2><table><tr><th>Coefficient</th><th>Value</th></tr>{force_table}</table></div>
-<div class="card"><h2>Generated artifacts</h2><ul>{''.join(artifact_links)}</ul></div>
-<div class="card"><h2>Solver log tail</h2><pre>{html.escape(solver_tail)}</pre></div>
 </div></body></html>
 """

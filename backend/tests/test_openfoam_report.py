@@ -35,13 +35,15 @@ def test_write_run_report_includes_generated_openfoam_outputs(tmp_path: Path) ->
     assert "Ux" in html
     assert "1e-8" in html
     assert "Mesh OK" in html
-    assert "solver.log" in html
     assert "pressure.png" in html
-    assert "forceCoeffs.csv" in html
     assert "force-coefficients.png" in html
     assert "0.45" in html
     assert "0.032" in html
     assert "-0.014" in html
     assert '<img src="pressure.png"' in html
-    assert '<a href="pressure.png">' in html
+    assert "Generated artifacts" not in html
+    assert "Solver log tail" not in html
+    assert "solver.log" not in html
+    assert "Time = 600s" not in html
+    assert '<a href="pressure.png">' not in html
     assert "file:///" not in html
