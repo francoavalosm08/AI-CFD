@@ -89,12 +89,13 @@ def _html(
     for name in artifact_names:
         path = run_dir / name
         if path.exists():
-            artifact_links.append(f'<li><a href="{path.resolve().as_uri()}">{html.escape(name)}</a></li>')
+            artifact_links.append(f'<li><a href="{html.escape(name, quote=True)}">{html.escape(name)}</a></li>')
     image_cards = []
     for path in sorted(run_dir.glob("*.png")):
+        src = html.escape(path.name, quote=True)
         image_cards.append(
             '<figure class="viz">'
-            f'<img src="{path.resolve().as_uri()}" alt="{html.escape(path.name)}">'
+            f'<img src="{src}" alt="{html.escape(path.name, quote=True)}">'
             f"<figcaption>{html.escape(path.name)}</figcaption>"
             "</figure>"
         )

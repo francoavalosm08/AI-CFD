@@ -42,3 +42,6 @@ def test_write_run_report_includes_generated_openfoam_outputs(tmp_path: Path) ->
     assert "0.45" in html
     assert "0.032" in html
     assert "-0.014" in html
+    assert '<img src="pressure.png"' in html
+    assert '<a href="pressure.png">' in html
+    assert "file:///" not in html
