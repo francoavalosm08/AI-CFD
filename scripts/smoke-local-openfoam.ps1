@@ -204,7 +204,7 @@ if ($artifacts.Count -eq 0) {
 }
 
 $names = @($artifacts | ForEach-Object { $_.display_name })
-foreach ($requiredName in @("openfoam-commands.json", "case-manifest.json", "mesh-validation.json", "openfoam-case.zip")) {
+foreach ($requiredName in @("openfoam-commands.json", "case-manifest.json", "mesh-validation.json", "openfoam-case-minimal.zip")) {
     if (-not ($names -contains $requiredName)) {
         Fail "Artifacts did not include required local OpenFOAM output '$requiredName'."
     }

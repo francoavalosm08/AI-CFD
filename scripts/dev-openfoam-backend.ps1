@@ -8,6 +8,7 @@ param(
     [string]$Distro = $(if ($env:OPENFOAM_WSL_DISTRO) { $env:OPENFOAM_WSL_DISTRO } else { "" }),
     [string]$Bashrc = $(if ($env:OPENFOAM_BASHRC) { $env:OPENFOAM_BASHRC } else { "/opt/openfoam*/etc/bashrc" }),
     [switch]$EnableAggressiveSurfaceRepair,
+    [switch]$FullCaseArchive,
     [switch]$NoReload
 )
 
@@ -105,10 +106,16 @@ if ($EnableAggressiveSurfaceRepair) {
 } else {
     Remove-Item Env:\AI_CFD_SURFACE_REPAIR -ErrorAction SilentlyContinue
 }
+if ($FullCaseArchive) {
+    $env:AI_CFD_FULL_CASE_ARCHIVE = "1"
+} else {
+    Remove-Item Env:\AI_CFD_FULL_CASE_ARCHIVE -ErrorAction SilentlyContinue
+}
 
 $dryRunText = if ($DryRun) { "enabled" } else { "disabled" }
 $surfaceRepairText = if ($EnableAggressiveSurfaceRepair) { "meshfix" } else { "basic" }
-Write-Host "Starting backend on http://localhost:$Port (CFD_RUNNER_MODE=local_openfoam, runtime=$Runtime, dry-run=$dryRunText, surface-repair=$surfaceRepairText, AI_CFD_DATA_ROOT=$dataRoot)"
+$archiveText = if ($FullCaseArchive) { "full" } else { "minimal" }
+Write-Host "Starting backend on http://localhost:$Port (CFD_RUNNER_MODE=local_openfoam, runtime=$Runtime, dry-run=$dryRunText, surface-repair=$surfaceRepairText, archive=$archiveText, AI_CFD_DATA_ROOT=$dataRoot)"
 Push-Location $backendPath
 try {
     $uvicornArgs = @("-m", "uvicorn", "app.main:app", "--host", $BindHost, "--port", [string]$Port)

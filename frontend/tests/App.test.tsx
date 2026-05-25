@@ -1,9 +1,14 @@
 import "@testing-library/jest-dom/vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import App from "../src/App";
 import type { RunRecord } from "../src/types";
+
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 describe("App", () => {
   it("renders the upload-first CFD workbench", () => {
@@ -127,6 +132,8 @@ describe("App", () => {
           max_skewness: 0.35,
           max_aspect_ratio: 1.2
         },
+        archive_mode: "minimal",
+        snappy_profile: "conservative_fallback",
         check_mesh_summary: { passed: true, cells: 45000 },
         manifest: { case_type: "external_3d_stl_snappy", reynolds_number: 1000000 }
       }
@@ -163,8 +170,60 @@ describe("App", () => {
 
     expect(await screen.findByText("Repaired ready")).toBeInTheDocument();
     expect(screen.getByText("meshfix")).toBeInTheDocument();
+    expect(screen.getByText("minimal")).toBeInTheDocument();
+    expect(screen.getByText("conservative fallback")).toBeInTheDocument();
     expect(screen.getByText("29.1")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Open full report/i })).toHaveAttribute("href", "/api/artifacts/artifact-report");
+
+    vi.unstubAllGlobals();
+  });
+
+  it("runs geometry preflight after STL upload and shows readiness recommendations", async () => {
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      if (url === "/api/health") {
+        return Response.json({ status: "ok", runner_mode: "local_openfoam" });
+      }
+      if (url === "/api/uploads" && init?.method === "POST") {
+        return Response.json({
+          id: "upload-stl",
+          original_name: "open-sheet.stl",
+          stored_path: "uploads/open-sheet.stl",
+          kind: "surface_mesh",
+          created_at: "2026-05-22T00:00:00Z"
+        });
+      }
+      if (url === "/api/uploads/upload-stl/geometry-preflight") {
+        return Response.json({
+          upload_id: "upload-stl",
+          status: "failed_geometry",
+          passed: false,
+          repair_mode: "basic",
+          recommendations: ["Export a closed/watertight STL before running CFD."],
+          artifacts: [{ display_name: "geometry-readiness.json", type: "plot_data" }]
+        });
+      }
+      return Response.json({}, { status: 404 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const { container } = render(<App />);
+    const input = container.querySelector('input[type="file"]') as HTMLInputElement;
+
+    const file = new File(["solid open\nendsolid open\n"], "open-sheet.stl", { type: "model/stl" });
+    fireEvent.change(input, {
+      target: {
+        files: {
+          0: file,
+          length: 1,
+          item: (index: number) => (index === 0 ? file : null)
+        }
+      }
+    });
+
+    expect(await screen.findByText("Geometry readiness")).toBeInTheDocument();
+    expect(screen.getByText("Failed geometry")).toBeInTheDocument();
+    expect(screen.getByText("Export a closed/watertight STL before running CFD.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Start CFD run/i })).toBeDisabled();
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/uploads/upload-stl/geometry-preflight", { method: "POST" }));
 
     vi.unstubAllGlobals();
   });

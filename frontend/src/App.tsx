@@ -12,9 +12,10 @@ import {
   fetchRun,
   formatRunnerMode,
   formatStatus,
+  runGeometryPreflight,
   uploadGeometry
 } from "./client";
-import type { Artifact, HealthResponse, RunRecord, SimulationSpec, UploadRecord } from "./types";
+import type { Artifact, GeometryPreflightResponse, HealthResponse, RunRecord, SimulationSpec, UploadRecord } from "./types";
 
 type EventLine = {
   status: string;
@@ -41,6 +42,8 @@ export default function App({ initialRunId }: AppProps = {}) {
   const [events, setEvents] = useState<EventLine[]>([]);
   const [health, setHealth] = useState<HealthResponse | null>(null);
   const [busy, setBusy] = useState(false);
+  const [preflightBusy, setPreflightBusy] = useState(false);
+  const [geometryPreflight, setGeometryPreflight] = useState<GeometryPreflightResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedImageId, setSelectedImageId] = useState<string | null>(null);
 
@@ -87,10 +90,28 @@ export default function App({ initialRunId }: AppProps = {}) {
     setRun(null);
     setArtifacts([]);
     setEvents([]);
+    setGeometryPreflight(null);
+    setPreflightBusy(false);
     try {
       const uploaded = await uploadGeometry(file);
       setUpload(uploaded);
       setSpec(defaultSpec(uploaded.id));
+      if (uploaded.kind === "surface_mesh" || uploaded.kind === "cad") {
+        setPreflightBusy(true);
+        try {
+          setGeometryPreflight(await runGeometryPreflight(uploaded.id));
+        } catch (err) {
+          setGeometryPreflight({
+            upload_id: uploaded.id,
+            status: "failed_geometry",
+            passed: false,
+            recommendations: [err instanceof Error ? err.message : "Geometry preflight failed."],
+            artifacts: []
+          });
+        } finally {
+          setPreflightBusy(false);
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed");
     } finally {
@@ -203,6 +224,31 @@ export default function App({ initialRunId }: AppProps = {}) {
               <strong>{upload.kind.replace("_", " ")}</strong>
             </div>
           )}
+          {preflightBusy && (
+            <div className="preflight-card">
+              <strong>Geometry readiness</strong>
+              <span>Checking STL/STEP geometry before solver setup...</span>
+            </div>
+          )}
+          {geometryPreflight && (
+            <div className={`preflight-card ${geometryPreflight.passed ? "preflight-pass" : "preflight-fail"}`}>
+              <strong>Geometry readiness</strong>
+              <span>{formatReadiness(geometryPreflight.status)}</span>
+              {geometryPreflight.repair_mode && <span>Repair mode: {formatToken(geometryPreflight.repair_mode)}</span>}
+              {geometryPreflight.recommendations.length > 0 && (
+                <ul className="recommendation-list">
+                  {geometryPreflight.recommendations.map((recommendation) => (
+                    <li key={recommendation}>{recommendation}</li>
+                  ))}
+                </ul>
+              )}
+              {geometryPreflight.artifacts.length > 0 && (
+                <span className="preflight-artifacts">
+                  Preflight artifacts: {geometryPreflight.artifacts.map((artifact) => artifact.display_name).join(", ")}
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         <form className="setup-panel" onSubmit={handleStart}>
@@ -295,7 +341,7 @@ export default function App({ initialRunId }: AppProps = {}) {
             </div>
           </label>
 
-          <button className="run-button" type="submit" disabled={!spec || busy}>
+          <button className="run-button" type="submit" disabled={!spec || busy || preflightBusy || geometryPreflight?.passed === false}>
             <Play size={18} />
             Start CFD run
           </button>
@@ -442,6 +488,12 @@ function buildSummaryMetrics(run: RunRecord | null): SummaryMetric[] {
   const repairMode = asString(geometryReadiness.repair_mode);
   if (repairMode) metrics.push({ label: "Repair mode", value: repairMode });
 
+  const archiveMode = asString(summary.archive_mode);
+  if (archiveMode) metrics.push({ label: "Archive", value: formatToken(archiveMode) });
+
+  const snappyProfile = asString(summary.snappy_profile ?? geometryReadiness.snappy_profile);
+  if (snappyProfile) metrics.push({ label: "snappyHexMesh", value: formatToken(snappyProfile) });
+
   const patches = forceCoefficients.patches;
   if (Array.isArray(patches) && typeof patches[0] === "string") {
     metrics.push({ label: "Force patch", value: patches[0] });
@@ -507,6 +559,11 @@ function formatCoefficient(value: number): string {
 function formatReadiness(value: string): string {
   const text = value.replaceAll("_", " ");
   return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+
+function formatToken(value: string): string {
+  return value.replaceAll("_", " ");
 }
 
 

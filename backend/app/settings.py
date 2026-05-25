@@ -28,6 +28,11 @@ class Settings(BaseModel):
         "true",
         "yes",
     }
+    openfoam_full_case_archive: bool = os.environ.get("AI_CFD_FULL_CASE_ARCHIVE", "0").lower() in {
+        "1",
+        "true",
+        "yes",
+    }
     app_data_root: Path | None = None
     agent_data_root: str = os.environ.get("FOAM_AGENT_SHARED_AGENT_ROOT", "/workspace/data")
     foam_agent_agent_runs_root: str = os.environ.get(

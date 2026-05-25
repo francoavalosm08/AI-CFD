@@ -53,7 +53,9 @@ def snappy_openfoam_commands() -> list[dict]:
     ]
 
 
-def build_snappy_stl_case(*, spec: SimulationSpec, stl_path: Path, case_dir: Path) -> dict:
+def build_snappy_stl_case(
+    *, spec: SimulationSpec, stl_path: Path, case_dir: Path, snappy_profile: str = "default"
+) -> dict:
     case_dir.mkdir(parents=True, exist_ok=True)
     for child in ("0", "constant", "constant/triSurface", "system"):
         (case_dir / child).mkdir(exist_ok=True)
@@ -71,7 +73,7 @@ def build_snappy_stl_case(*, spec: SimulationSpec, stl_path: Path, case_dir: Pat
             + " ".join(geometry_diagnostics["recommendations"])
         )
     domain = _domain(spec.length_scale)
-    cells = _base_cells(spec.mesh_quality)
+    cells = _base_cells(spec.mesh_quality, snappy_profile)
     force_coefficients = _force_coefficients_config(spec)
     files = {
         "0/U": _u_file(spec),
@@ -87,7 +89,7 @@ def build_snappy_stl_case(*, spec: SimulationSpec, stl_path: Path, case_dir: Pat
         "system/fvSolution": _fv_solution(),
         "system/forceCoeffs": _force_coeffs_file(force_coefficients),
         "system/meshQualityDict": _mesh_quality_dict(),
-        "system/snappyHexMeshDict": _snappy_hex_mesh_dict(domain, spec.mesh_quality),
+        "system/snappyHexMeshDict": _snappy_hex_mesh_dict(domain, spec.mesh_quality, snappy_profile),
         "system/surfaceFeaturesDict": _surface_features_dict(),
     }
     for relative_path, content in files.items():
@@ -97,6 +99,7 @@ def build_snappy_stl_case(*, spec: SimulationSpec, stl_path: Path, case_dir: Pat
         "runner": "local_openfoam",
         "case_type": "external_3d_stl_snappy",
         "mesh_source": "snappyHexMesh",
+        "snappy_profile": snappy_profile,
         "solver": "simpleFoam",
         "input_surface": str(stl_path),
         "surface_file": "constant/triSurface/obstacle.stl",
@@ -129,6 +132,23 @@ def build_snappy_stl_case(*, spec: SimulationSpec, stl_path: Path, case_dir: Pat
     return manifest
 
 
+def apply_snappy_profile(*, case_dir: Path, spec: SimulationSpec, profile: str) -> dict:
+    manifest_path = case_dir / "snappy-manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    domain = manifest["domain"]
+    cells = _base_cells(spec.mesh_quality, profile)
+    (case_dir / "system" / "blockMeshDict").write_text(_block_mesh_dict(domain, cells), encoding="utf-8")
+    (case_dir / "system" / "snappyHexMeshDict").write_text(
+        _snappy_hex_mesh_dict(domain, spec.mesh_quality, profile),
+        encoding="utf-8",
+    )
+    manifest["snappy_profile"] = profile
+    manifest["base_cells"] = cells
+    for path in (case_dir / "snappy-manifest.json", case_dir / "case-manifest.json"):
+        path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    return manifest
+
+
 def _domain(length_scale: float) -> dict[str, list[float]]:
     length = float(length_scale)
     return {
@@ -144,7 +164,13 @@ def _round_domain(value: float) -> float:
     return 0.0 if abs(rounded) < 0.0000005 else rounded
 
 
-def _base_cells(mesh_quality: str) -> list[int]:
+def _base_cells(mesh_quality: str, profile: str = "default") -> list[int]:
+    if profile == "conservative_fallback":
+        return {
+            "coarse": [24, 16, 16],
+            "balanced": [32, 22, 22],
+            "fine": [45, 30, 30],
+        }.get(mesh_quality, [32, 22, 22])
     return {
         "coarse": [30, 20, 20],
         "balanced": [45, 30, 30],
@@ -152,7 +178,13 @@ def _base_cells(mesh_quality: str) -> list[int]:
     }.get(mesh_quality, [45, 30, 30])
 
 
-def _refinement_levels(mesh_quality: str) -> tuple[int, int]:
+def _refinement_levels(mesh_quality: str, profile: str = "default") -> tuple[int, int]:
+    if profile == "conservative_fallback":
+        return {
+            "coarse": (1, 1),
+            "balanced": (1, 2),
+            "fine": (2, 3),
+        }.get(mesh_quality, (1, 2))
     return {
         "coarse": (1, 2),
         "balanced": (2, 3),
@@ -216,9 +248,12 @@ mergePatchPairs ();
 """
 
 
-def _snappy_hex_mesh_dict(domain: dict[str, list[float]], mesh_quality: str) -> str:
-    min_level, max_level = _refinement_levels(mesh_quality)
+def _snappy_hex_mesh_dict(domain: dict[str, list[float]], mesh_quality: str, profile: str = "default") -> str:
+    min_level, max_level = _refinement_levels(mesh_quality, profile)
     location = domain["locationInMesh"]
+    feature_snap = "false" if profile == "conservative_fallback" else "true"
+    tolerance = "1.0" if profile == "conservative_fallback" else "2.0"
+    feature_angle = "45" if profile == "conservative_fallback" else "30"
     return f"""{foam_header("dictionary", "snappyHexMeshDict")}
 castellatedMesh true;
 snap            true;
@@ -261,7 +296,7 @@ castellatedMeshControls
         }}
     }}
 
-    resolveFeatureAngle 30;
+    resolveFeatureAngle {feature_angle};
     refinementRegions {{}}
     locationInMesh ({location[0]:g} {location[1]:g} {location[2]:g});
     allowFreeStandingZoneFaces true;
@@ -270,12 +305,12 @@ castellatedMeshControls
 snapControls
 {{
     nSmoothPatch 3;
-    tolerance 2.0;
+    tolerance {tolerance};
     nSolveIter 30;
     nRelaxIter 5;
     nFeatureSnapIter 10;
     implicitFeatureSnap false;
-    explicitFeatureSnap true;
+    explicitFeatureSnap {feature_snap};
     multiRegionFeatureSnap false;
 }}
 

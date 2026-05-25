@@ -135,7 +135,7 @@ async def convert_to_gmsh_mesh(
 
 
 async def convert_cad_to_stl_surface(
-    source_path: Path, output_path: Path, *, gmsh_command: str = "gmsh"
+    source_path: Path, output_path: Path, *, gmsh_command: str = "gmsh", log_path: Path | None = None
 ) -> Path:
     gmsh = shutil.which(gmsh_command)
     if not gmsh:
@@ -156,6 +156,21 @@ async def convert_cad_to_stl_surface(
         stderr=asyncio.subprocess.PIPE,
     )
     stdout, stderr = await process.communicate()
+    if log_path is not None:
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        log_path.write_text(
+            "\n".join(
+                [
+                    f"command: {gmsh} {source_path} -2 -format stl -o {output_path}",
+                    f"returncode: {process.returncode}",
+                    "--- stdout ---",
+                    stdout.decode(errors="replace"),
+                    "--- stderr ---",
+                    stderr.decode(errors="replace"),
+                ]
+            ),
+            encoding="utf-8",
+        )
     if process.returncode != 0 or not output_path.exists() or output_path.stat().st_size == 0:
         detail = (stderr or stdout).decode(errors="replace").strip()
         raise MeshConversionError(cad_surface_conversion_failure_message(source_path.name, detail))

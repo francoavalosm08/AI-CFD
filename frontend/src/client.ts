@@ -1,4 +1,4 @@
-import type { Artifact, HealthResponse, RunRecord, RunStatus, SimulationSpec, UploadRecord } from "./types";
+import type { Artifact, GeometryPreflightResponse, HealthResponse, RunRecord, RunStatus, SimulationSpec, UploadRecord } from "./types";
 
 export function artifactUrl(artifactId: string): string {
   return `/api/artifacts/${artifactId}`;
@@ -47,6 +47,11 @@ export async function uploadGeometry(file: File): Promise<UploadRecord> {
   const form = new FormData();
   form.append("file", file);
   const response = await fetch("/api/uploads", { method: "POST", body: form });
+  return parseJsonResponse(response);
+}
+
+export async function runGeometryPreflight(uploadId: string): Promise<GeometryPreflightResponse> {
+  const response = await fetch(`/api/uploads/${uploadId}/geometry-preflight`, { method: "POST" });
   return parseJsonResponse(response);
 }
 

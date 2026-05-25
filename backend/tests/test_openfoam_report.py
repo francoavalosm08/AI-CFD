@@ -22,7 +22,7 @@ def test_write_run_report_includes_generated_openfoam_outputs(tmp_path: Path) ->
     (run_dir / "force-coefficients.png").write_bytes(b"png")
     (run_dir / "geometry-readiness.json").write_text(
         '{"status":"repaired_ready","repair_mode":"meshfix","meshfix_attempted":true,'
-        '"surface_check_passed":true,"check_mesh_passed":true,'
+        '"surface_check_passed":true,"check_mesh_passed":true,"snappy_profile":"conservative_fallback",'
         '"recommendations":["Surface passed after repair."]}',
         encoding="utf-8",
     )
@@ -51,8 +51,11 @@ def test_write_run_report_includes_generated_openfoam_outputs(tmp_path: Path) ->
     assert "0.032" in html
     assert "-0.014" in html
     assert "Run quality" in html
+    assert "Run verdict" in html
+    assert "Usable result" in html
     assert "repaired_ready" in html
     assert "meshfix" in html
+    assert "conservative_fallback" in html
     assert "Surface passed after repair." in html
     assert "29.1" in html
     assert "0.35" in html

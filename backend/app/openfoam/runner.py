@@ -8,7 +8,12 @@ from collections.abc import Awaitable, Callable
 from pathlib import Path, PurePosixPath
 from typing import Any
 
-from app.openfoam.artifacts import write_force_coefficients_csv, write_residual_csv, zip_case
+from app.openfoam.artifacts import (
+    write_force_coefficients_csv,
+    write_minimal_case_archive,
+    write_residual_csv,
+    zip_case,
+)
 from app.openfoam.case_builder import build_openfoam_case
 from app.openfoam.geometry_readiness import write_geometry_readiness
 from app.openfoam.mesh_validation import validate_msh_physical_names
@@ -20,7 +25,7 @@ from app.openfoam.parsers import (
 )
 from app.openfoam.report import write_run_report
 from app.openfoam.runner_types import CommandResult
-from app.openfoam.snappy import build_snappy_stl_case, snappy_openfoam_commands
+from app.openfoam.snappy import apply_snappy_profile, build_snappy_stl_case, snappy_openfoam_commands
 from app.openfoam.visualization import write_visualization_previews
 from app.openfoam.wsl import (
     make_wsl_command_executor,
@@ -47,6 +52,7 @@ class LocalOpenFoamRunner:
         wsl_distro: str = "Ubuntu",
         openfoam_bashrc: str = "/opt/openfoam*/etc/bashrc",
         timeout_seconds: int = 1200,
+        full_case_archive: bool = False,
         command_executor: CommandExecutor | None = None,
     ) -> None:
         self.spec = spec
@@ -55,6 +61,7 @@ class LocalOpenFoamRunner:
         self.wsl_distro = wsl_distro
         self.openfoam_bashrc = openfoam_bashrc
         self.timeout_seconds = timeout_seconds
+        self.full_case_archive = full_case_archive
         self._uses_default_executor = command_executor is None
         if command_executor is not None:
             self.command_executor = command_executor
@@ -169,17 +176,21 @@ class LocalOpenFoamRunner:
                 if is_surface_case
                 else None
             )
-            archive = await asyncio.to_thread(zip_case, case_dir, output / "openfoam-case.zip")
+            await _emit(emit, "postprocessing", "Packaging minimal OpenFOAM artifacts")
+            archive, archive_mode = await self._package_case(output, case_dir)
             return {
                 "mode": "local_openfoam",
                 "dry_run": True,
                 "case_dir": str(case_dir),
                 "case_archive": str(archive),
+                "minimal_case_archive": str(archive),
+                "archive_mode": archive_mode,
                 "commands": commands,
                 "manifest": manifest,
                 "mesh_validation": mesh_validation,
                 "geometry_readiness": geometry_readiness,
                 "geometry_diagnostics": _read_json(output / "geometry-diagnostics.json"),
+                "snappy_profile": manifest.get("snappy_profile"),
             }
 
         results: list[dict[str, Any]] = []
@@ -189,10 +200,31 @@ class LocalOpenFoamRunner:
             else "Importing uploaded mesh with gmshToFoam"
         )
         await _emit(emit, "meshing", meshing_message)
+        snappy_profile = str(manifest.get("snappy_profile", "default"))
         for command in commands:
             result = await command_executor(
                 command["command"], execution_case_dir, self.timeout_seconds
             )
+            if (
+                is_surface_case
+                and command["name"] == "snappy_hex_mesh"
+                and result.returncode != 0
+                and snappy_profile == "default"
+            ):
+                self._write_command_log(output, "snappy_hex_mesh_default", result)
+                results.append(_result_dict(result, "snappy_hex_mesh_default", False))
+                await _emit(emit, "meshing", "Retrying snappyHexMesh with conservative fallback")
+                manifest = apply_snappy_profile(
+                    case_dir=case_dir,
+                    spec=self.spec,
+                    profile="conservative_fallback",
+                )
+                snappy_profile = "conservative_fallback"
+                if staged_case_dir_wsl:
+                    await self._stage_case_to_wsl(case_dir, staged_case_dir_wsl)
+                result = await command_executor(
+                    command["command"], execution_case_dir, self.timeout_seconds
+                )
             results.append(_result_dict(result, command["name"], command["required"]))
             self._write_command_log(output, command["name"], result)
             if result.returncode != 0 and command["required"]:
@@ -218,6 +250,7 @@ class LocalOpenFoamRunner:
             if command["name"] == "check_mesh":
                 await _emit(emit, "running", "Running simpleFoam solver")
 
+        await _emit(emit, "postprocessing", "Parsing solver outputs and generating report")
         solver_log = output / "solver.log"
         check_mesh_summary = _write_check_mesh_summary(output)
         residuals = parse_residuals(solver_log.read_text(encoding="utf-8") if solver_log.exists() else "")
@@ -234,7 +267,6 @@ class LocalOpenFoamRunner:
         )
         geometry_diagnostics = _read_json(output / "geometry-diagnostics.json")
         visualizations = write_visualization_previews(output)
-        archive = await asyncio.to_thread(zip_case, case_dir, output / "openfoam-case.zip")
         chord_length = manifest.get("chord_length_m") or self.spec.length_scale
         reynolds_number = manifest.get("reynolds_number")
         report = write_run_report(
@@ -249,12 +281,21 @@ class LocalOpenFoamRunner:
                 "Reynolds number": f"{reynolds_number:g}" if reynolds_number is not None else "n/a",
             },
         )
+        package_message = (
+            "Packaging full OpenFOAM case archive"
+            if self.full_case_archive
+            else "Packaging minimal OpenFOAM artifacts"
+        )
+        await _emit(emit, "postprocessing", package_message)
+        archive, archive_mode = await self._package_case(output, case_dir)
         await _emit(emit, "visualizing", "Collected local OpenFOAM artifacts")
         return {
             "mode": "local_openfoam",
             "dry_run": False,
             "case_dir": str(case_dir),
             "case_archive": str(archive),
+            "minimal_case_archive": str(archive if archive_mode == "minimal" else output / "openfoam-case-minimal.zip"),
+            "archive_mode": archive_mode,
             "report": str(report),
             "visualizations": [path.name for path in visualizations],
             "commands": commands,
@@ -267,6 +308,7 @@ class LocalOpenFoamRunner:
             "mesh_quality": check_mesh_summary,
             "geometry_readiness": geometry_readiness,
             "geometry_diagnostics": geometry_diagnostics,
+            "snappy_profile": manifest.get("snappy_profile"),
             "report_sections": ["run_quality", "visual_previews", "residuals", "force_coefficients"],
         }
 
@@ -288,6 +330,7 @@ class LocalOpenFoamRunner:
             "block_mesh": "blockMesh.log",
             "surface_features": "surfaceFeatures.log",
             "snappy_hex_mesh": "snappyHexMesh.log",
+            "snappy_hex_mesh_default": "snappyHexMesh-default.log",
             "check_mesh": "checkMesh.log",
             "check_mesh_strict": "checkMesh-strict.log",
             "solve": "solver.log",
@@ -328,6 +371,25 @@ class LocalOpenFoamRunner:
         )
         if result.returncode != 0:
             raise RuntimeError(f"WSL case copy-back failed: {(result.stderr or result.stdout).strip()}")
+
+    async def _package_case(self, output_dir: Path, case_dir: Path) -> tuple[Path, str]:
+        minimal_archive = output_dir / "openfoam-case-minimal.zip"
+        if self.full_case_archive:
+            await asyncio.to_thread(
+                write_minimal_case_archive,
+                run_dir=output_dir,
+                case_dir=case_dir,
+                archive_path=minimal_archive,
+            )
+            full_archive = await asyncio.to_thread(zip_case, case_dir, output_dir / "openfoam-case.zip")
+            return full_archive, "full"
+        archive = await asyncio.to_thread(
+            write_minimal_case_archive,
+            run_dir=output_dir,
+            case_dir=case_dir,
+            archive_path=minimal_archive,
+        )
+        return archive, "minimal"
 
 
 async def _run_shell_command(command: str, cwd: Path, timeout_seconds: int) -> CommandResult:

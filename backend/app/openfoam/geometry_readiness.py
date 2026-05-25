@@ -24,6 +24,7 @@ def build_geometry_readiness(
 ) -> dict[str, Any]:
     diagnostics = _read_json(run_dir / "geometry-diagnostics.json")
     check_mesh_summary = _read_json(run_dir / "checkMesh-summary.json")
+    snappy_manifest = _read_json(run_dir / "case" / "snappy-manifest.json")
     by_name = {str(result.get("name")): result for result in command_results}
 
     surface_check_passed = _command_passed(by_name.get("surface_check"))
@@ -55,6 +56,7 @@ def build_geometry_readiness(
         "body_count": diagnostics.get("body_count_after_repair", diagnostics.get("body_count")),
         "watertight": diagnostics.get("watertight_after_repair", diagnostics.get("is_watertight")),
         "volume": diagnostics.get("volume_after_repair"),
+        "snappy_profile": snappy_manifest.get("snappy_profile"),
         "recommendations": recommendations,
     }
     return readiness

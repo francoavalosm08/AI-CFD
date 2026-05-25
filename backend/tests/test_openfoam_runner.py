@@ -128,7 +128,10 @@ async def test_runner_dry_run_writes_command_manifest_without_executing(tmp_path
     assert executor.commands == []
     assert (tmp_path / "run" / "openfoam-commands.json").exists()
     assert (tmp_path / "run" / "openfoam-dry-run.log").exists()
-    assert (tmp_path / "run" / "openfoam-case.zip").exists()
+    assert (tmp_path / "run" / "openfoam-case-minimal.zip").exists()
+    assert result["archive_mode"] == "minimal"
+    assert result["minimal_case_archive"].endswith("openfoam-case-minimal.zip")
+    assert result["case_archive"].endswith("openfoam-case-minimal.zip")
 
 
 @pytest.mark.asyncio
@@ -229,7 +232,7 @@ async def test_runner_allows_optional_export_failure(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_runner_does_not_block_event_loop_while_zipping_case(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_runner_does_not_block_event_loop_while_packaging_case(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     mesh = tmp_path / "wing.msh"
     mesh.write_text("$MeshFormat\n2.2 0 8\n")
     executor = RecordingExecutor(
@@ -242,16 +245,16 @@ async def test_runner_does_not_block_event_loop_while_zipping_case(tmp_path: Pat
     )
     runner = LocalOpenFoamRunner(spec=_spec(), dry_run=False, command_executor=executor)
     loop = asyncio.get_running_loop()
-    zip_started = asyncio.Event()
-    release_zip = threading.Event()
+    package_started = asyncio.Event()
+    release_package = threading.Event()
 
-    def slow_zip_case(_case_dir: Path, archive_path: Path) -> Path:
-        loop.call_soon_threadsafe(zip_started.set)
-        release_zip.wait(timeout=1)
+    def slow_minimal_archive(*, run_dir: Path, case_dir: Path, archive_path: Path) -> Path:
+        loop.call_soon_threadsafe(package_started.set)
+        release_package.wait(timeout=1)
         archive_path.write_bytes(b"zip")
         return archive_path
 
-    monkeypatch.setattr("app.openfoam.runner.zip_case", slow_zip_case)
+    monkeypatch.setattr("app.openfoam.runner.write_minimal_case_archive", slow_minimal_archive)
 
     task = asyncio.create_task(
         runner.run_external_aero(
@@ -262,12 +265,43 @@ async def test_runner_does_not_block_event_loop_while_zipping_case(tmp_path: Pat
         )
     )
 
-    await asyncio.wait_for(zip_started.wait(), timeout=0.5)
+    await asyncio.wait_for(package_started.wait(), timeout=0.5)
     assert not task.done()
-    release_zip.set()
+    release_package.set()
     result = await asyncio.wait_for(task, timeout=2)
 
+    assert result["case_archive"].endswith("openfoam-case-minimal.zip")
+
+
+@pytest.mark.asyncio
+async def test_runner_full_case_archive_flag_preserves_full_archive(tmp_path: Path) -> None:
+    mesh = tmp_path / "wing.msh"
+    mesh.write_text("$MeshFormat\n2.2 0 8\n")
+    executor = RecordingExecutor(
+        [
+            CommandResult(command="gmshToFoam input.msh", returncode=0, stdout="mesh imported", stderr=""),
+            CommandResult(command="checkMesh -allGeometry -allTopology", returncode=0, stdout="Mesh OK", stderr=""),
+            CommandResult(command="simpleFoam", returncode=0, stdout="Solving for Ux\nFinal residual = 1e-5", stderr=""),
+            CommandResult(command="foamToVTK", returncode=0, stdout="vtk", stderr=""),
+        ]
+    )
+    runner = LocalOpenFoamRunner(
+        spec=_spec(),
+        dry_run=False,
+        command_executor=executor,
+        full_case_archive=True,
+    )
+
+    result = await runner.run_external_aero(
+        prompt="local openfoam run",
+        mesh_path=str(mesh),
+        output_dir=str(tmp_path / "run"),
+        emit=lambda _status, _message: None,
+    )
+
+    assert result["archive_mode"] == "full"
     assert result["case_archive"].endswith("openfoam-case.zip")
+    assert (tmp_path / "run" / "openfoam-case.zip").exists()
 
 
 @pytest.mark.asyncio
@@ -298,6 +332,32 @@ async def test_runner_sets_empty_patch_before_check_mesh_for_2d_airfoil(tmp_path
     assert "residuals.png" in result["visualizations"]
     assert "mesh-quality.png" in result["visualizations"]
     assert (tmp_path / "run" / "residuals.png").exists()
+
+
+@pytest.mark.asyncio
+async def test_runner_emits_postprocessing_and_packaging_events(tmp_path: Path) -> None:
+    mesh = tmp_path / "wing.msh"
+    mesh.write_text("$MeshFormat\n2.2 0 8\n")
+    executor = RecordingExecutor(
+        [
+            CommandResult(command="gmshToFoam input.msh", returncode=0, stdout="mesh imported", stderr=""),
+            CommandResult(command="checkMesh -allGeometry -allTopology", returncode=0, stdout="Mesh OK", stderr=""),
+            CommandResult(command="simpleFoam", returncode=0, stdout="Solving for Ux\nFinal residual = 1e-5", stderr=""),
+            CommandResult(command="foamToVTK", returncode=0, stdout="vtk", stderr=""),
+        ]
+    )
+    events: list[tuple[str, str]] = []
+    runner = LocalOpenFoamRunner(spec=_spec(), dry_run=False, command_executor=executor)
+
+    await runner.run_external_aero(
+        prompt="local openfoam run",
+        mesh_path=str(mesh),
+        output_dir=str(tmp_path / "run"),
+        emit=lambda status, message: events.append((status, message)),
+    )
+
+    assert ("postprocessing", "Parsing solver outputs and generating report") in events
+    assert ("postprocessing", "Packaging minimal OpenFOAM artifacts") in events
 
 
 @pytest.mark.asyncio
@@ -394,6 +454,40 @@ endsolid open
     assert executor.commands == []
     assert "Surface geometry is not solver-ready" in str(exc_info.value)
     assert (tmp_path / "run" / "geometry-diagnostics.json").exists()
+
+
+@pytest.mark.asyncio
+async def test_runner_retries_snappy_with_conservative_fallback(tmp_path: Path) -> None:
+    stl = tmp_path / "body.stl"
+    _closed_tetra_stl(stl)
+    executor = RecordingExecutor(
+        [
+            CommandResult(command="surfaceCheck constant/triSurface/obstacle.stl", returncode=0, stdout="surface ok", stderr=""),
+            CommandResult(command="blockMesh", returncode=0, stdout="block ok", stderr=""),
+            CommandResult(command="surfaceFeatures", returncode=0, stdout="features ok", stderr=""),
+            CommandResult(command="snappyHexMesh -overwrite", returncode=1, stdout="", stderr="default snappy failed"),
+            CommandResult(command="snappyHexMesh -overwrite", returncode=0, stdout="fallback snappy ok", stderr=""),
+            CommandResult(command="checkMesh", returncode=0, stdout="Mesh OK", stderr=""),
+            CommandResult(command="checkMesh -allGeometry -allTopology", returncode=0, stdout="strict ok", stderr=""),
+            CommandResult(command="simpleFoam", returncode=0, stdout="Solving for Ux\nFinal residual = 1e-5", stderr=""),
+            CommandResult(command="foamToVTK -ascii", returncode=0, stdout="vtk", stderr=""),
+        ]
+    )
+    runner = LocalOpenFoamRunner(spec=_spec(), dry_run=False, command_executor=executor)
+
+    result = await runner.run_external_aero(
+        prompt="local openfoam stl run",
+        mesh_path=str(stl),
+        output_dir=str(tmp_path / "run"),
+        emit=lambda _status, _message: None,
+    )
+
+    assert executor.commands.count("snappyHexMesh -overwrite") == 2
+    assert result["snappy_profile"] == "conservative_fallback"
+    assert result["manifest"]["snappy_profile"] == "conservative_fallback"
+    assert result["geometry_readiness"]["snappy_profile"] == "conservative_fallback"
+    assert (tmp_path / "run" / "snappyHexMesh-default.log").exists()
+    assert (tmp_path / "run" / "snappyHexMesh.log").read_text(encoding="utf-8").startswith("fallback snappy ok")
 
 
 @pytest.mark.asyncio

@@ -645,7 +645,9 @@ Problem:
 Fix:
 
 - OpenFOAM case archive creation now runs on a worker thread.
-- This keeps the API responsive while preserving the same artifact name and download behavior.
+- The default artifact is now `openfoam-case-minimal.zip`, which keeps logs, manifests, configs, reports, generated images, initial fields, and post-processing files without heavy full time directories.
+- Full `openfoam-case.zip` packaging is opt-in with `AI_CFD_FULL_CASE_ARCHIVE=1` or `-FullCaseArchive`.
+- Runner events now call out post-processing and artifact packaging so the UI does not look stuck after solver completion.
 
 ### Optional Docker daemon may be unavailable
 

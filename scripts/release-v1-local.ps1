@@ -14,6 +14,7 @@ param(
     [int]$BadMeshTimeoutSeconds = 120,
     [int]$PollIntervalSeconds = 5,
     [switch]$EnableAggressiveSurfaceRepair,
+    [switch]$FullCaseArchive,
     [string]$BindHost = "127.0.0.1"
 )
 
@@ -76,7 +77,8 @@ function Start-LocalOpenFoamBackend {
         [Parameter(Mandatory = $true)][int]$Port,
         [Parameter(Mandatory = $true)][string]$StdoutLog,
         [Parameter(Mandatory = $true)][string]$StderrLog,
-        [switch]$EnableAggressiveSurfaceRepair
+        [switch]$EnableAggressiveSurfaceRepair,
+        [switch]$FullCaseArchive
     )
 
     Stop-PortProcess -Port $Port
@@ -92,6 +94,9 @@ function Start-LocalOpenFoamBackend {
     )
     if ($EnableAggressiveSurfaceRepair) {
         $args += "-EnableAggressiveSurfaceRepair"
+    }
+    if ($FullCaseArchive) {
+        $args += "-FullCaseArchive"
     }
     return Start-Process -FilePath "powershell.exe" -ArgumentList $args -RedirectStandardOutput $StdoutLog -RedirectStandardError $StderrLog -WindowStyle Hidden -PassThru
 }
@@ -207,7 +212,7 @@ $backendProcess = $null
 
 try {
     Write-Host "Starting local OpenFOAM backend for real V1 gates on $baseUrl ..."
-    $backendProcess = Start-LocalOpenFoamBackend -BackendScript $backendScript -Port $port -StdoutLog $stdoutLog -StderrLog $stderrLog -EnableAggressiveSurfaceRepair:$EnableAggressiveSurfaceRepair
+    $backendProcess = Start-LocalOpenFoamBackend -BackendScript $backendScript -Port $port -StdoutLog $stdoutLog -StderrLog $stderrLog -EnableAggressiveSurfaceRepair:$EnableAggressiveSurfaceRepair -FullCaseArchive:$FullCaseArchive
     Wait-LocalOpenFoamBackend -BaseUrl $baseUrl -Process $backendProcess -StdoutLog $stdoutLog -StderrLog $stderrLog
 
     Run-FileScript -Path $nacaSmokeScript -Arguments @(

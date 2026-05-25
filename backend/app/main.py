@@ -13,6 +13,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.files import UnsupportedUploadType, detect_upload_kind
 from app.foam_agent import FakeFoamAgentRunner, FoamAgentMcpClient
+from app.geometry_preflight import run_geometry_preflight
 from app.jobs import RunExecutor
 from app.openfoam.runner import LocalOpenFoamRunner
 from app.schemas import ArtifactListResponse, RunCreateRequest, RunRecord, RunStatus, UploadRecord
@@ -57,6 +58,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 wsl_distro=settings.openfoam_wsl_distro,
                 openfoam_bashrc=settings.openfoam_bashrc,
                 timeout_seconds=settings.openfoam_run_timeout_seconds,
+                full_case_archive=settings.openfoam_full_case_archive,
             )
         else:
             runner = FoamAgentMcpClient(
@@ -116,6 +118,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
         repo.save_upload(record)
         return record
+
+    @app.post("/api/uploads/{upload_id}/geometry-preflight")
+    async def geometry_preflight(upload_id: str) -> dict:
+        upload = repo.get_upload(upload_id)
+        if not upload:
+            raise HTTPException(status_code=404, detail="Upload not found")
+        return await run_geometry_preflight(
+            upload=upload,
+            data_root=data_root,
+            gmsh_command=settings.gmsh_command,
+        )
 
     @app.post("/api/runs", response_model=RunRecord)
     async def create_run(request: RunCreateRequest, background_tasks: BackgroundTasks) -> RunRecord:

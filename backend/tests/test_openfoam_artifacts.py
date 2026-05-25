@@ -1,6 +1,13 @@
 from pathlib import Path
 
-from app.openfoam.artifacts import write_force_coefficients_csv, write_residual_csv, zip_case
+import zipfile
+
+from app.openfoam.artifacts import (
+    write_force_coefficients_csv,
+    write_minimal_case_archive,
+    write_residual_csv,
+    zip_case,
+)
 
 
 def test_write_residual_csv_creates_plot_data(tmp_path: Path) -> None:
@@ -41,3 +48,30 @@ def test_zip_case_creates_archive(tmp_path: Path) -> None:
 
     assert archive.exists()
     assert archive.suffix == ".zip"
+
+
+def test_write_minimal_case_archive_excludes_heavy_time_directories(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run"
+    case_dir = run_dir / "case"
+    (case_dir / "system").mkdir(parents=True)
+    (case_dir / "0").mkdir()
+    (case_dir / "100").mkdir()
+    (case_dir / "postProcessing" / "forceCoeffs1" / "0").mkdir(parents=True)
+    (case_dir / "system" / "controlDict").write_text("application simpleFoam;\n")
+    (case_dir / "0" / "U").write_text("initial velocity\n")
+    (case_dir / "100" / "U").write_text("heavy final field\n")
+    (case_dir / "postProcessing" / "forceCoeffs1" / "0" / "forceCoeffs.dat").write_text("coeffs\n")
+    (run_dir / "solver.log").write_text("solver\n")
+    (run_dir / "openfoam-report.html").write_text("<html></html>\n")
+
+    archive = write_minimal_case_archive(run_dir=run_dir, case_dir=case_dir, archive_path=run_dir / "openfoam-case-minimal.zip")
+
+    with zipfile.ZipFile(archive) as handle:
+        names = set(handle.namelist())
+
+    assert "case/system/controlDict" in names
+    assert "case/0/U" in names
+    assert "solver.log" in names
+    assert "openfoam-report.html" in names
+    assert "case/postProcessing/forceCoeffs1/0/forceCoeffs.dat" in names
+    assert "case/100/U" not in names

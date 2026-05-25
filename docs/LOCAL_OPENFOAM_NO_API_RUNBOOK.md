@@ -230,7 +230,8 @@ The dashboard should show or offer:
 - `force-coefficients.png`
 - `velocity-magnitude.png`
 - `pressure.png`
-- `openfoam-case.zip`
+- `openfoam-case-minimal.zip`
+- optional `openfoam-case.zip` when `AI_CFD_FULL_CASE_ARCHIVE=1` or `-FullCaseArchive` is enabled
 - `openfoam-report.html`
 - VTK files when available
 - final `Cl`, `Cd`, and `Cm` when an `airfoil_2d` run generates `forceCoeffs`
@@ -273,7 +274,7 @@ Latest NACA 4412 validation result on this machine:
 - `checkMesh`: passed.
 - Cell count: `57,292`.
 - Final OpenFOAM-derived coefficients from latest accepted run: `Cl=0.4591685`, `Cd=0.02907224`, `Cm=0.09620507`.
-- Artifacts: `mesh-validation.json`, `checkMesh.log`, `solver.log`, `residuals.csv`, `residuals.png`, `forceCoeffs.dat`, `forceCoeffs.csv`, `force-coefficients.png`, `velocity-magnitude.png`, `pressure.png`, `mesh-quality.png`, VTK files, `openfoam-case.zip`, and `openfoam-report.html`. STL/STEP runs also add `geometry-diagnostics.json`, `geometry-readiness.json`, and `geometry-diagnostics.png`.
+- Artifacts: `mesh-validation.json`, `checkMesh.log`, `solver.log`, `residuals.csv`, `residuals.png`, `forceCoeffs.dat`, `forceCoeffs.csv`, `force-coefficients.png`, `velocity-magnitude.png`, `pressure.png`, `mesh-quality.png`, VTK files, `openfoam-case-minimal.zip`, and `openfoam-report.html`. STL/STEP runs also add `geometry-diagnostics.json`, `geometry-readiness.json`, and `geometry-diagnostics.png`. Full `openfoam-case.zip` packaging is opt-in with `AI_CFD_FULL_CASE_ARCHIVE=1` or the `-FullCaseArchive` script flag.
 
 Next implementation work:
 
@@ -290,6 +291,6 @@ Next implementation work:
 | Path with spaces fails | Windows-to-WSL quoting issue | Unit-tested path adapter |
 | `checkMesh` fails | Mesh invalid or boundary mismatch | Run fails with `checkMesh.log` artifact |
 | STEP conversion fails before OpenFOAM | Missing Gmsh or CAD geometry that cannot export to a clean STL surface | Error recommends CAD cleanup, watertight STL export, or premeshed `.msh` |
-| STL snappy meshing fails | Open STL, self-intersections, multiple bodies, bad scale, or inadequate refinement | Inspect `geometry-readiness.json`, `surfaceCheck.log`, `surfaceFeatures.log`, `snappyHexMesh.log`, `checkMesh.log`, and use `scripts\generate-snappy-stl-case.ps1` |
-| Solver diverges | Bad case defaults or mesh quality | Run fails with `solver.log` and zipped case |
-| No visualization | `foamToVTK` or PyVista missing | Still return logs/case zip; PNGs are optional |
+| STL snappy meshing fails | Open STL, self-intersections, multiple bodies, bad scale, or inadequate refinement | Inspect preflight readiness, `geometry-readiness.json`, `surfaceCheck.log`, `surfaceFeatures.log`, `snappyHexMesh.log`, `checkMesh.log`; the runner retries one `conservative_fallback` snappy profile before failing |
+| Solver diverges | Bad case defaults or mesh quality | Run fails with `solver.log` and minimal zipped case |
+| No visualization | `foamToVTK` or PyVista missing | Still return logs/minimal case zip; PNGs are optional |

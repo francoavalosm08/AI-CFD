@@ -85,7 +85,7 @@ The repo also includes a generated NACA 4412 validation mesh path for the curren
 .\scripts\smoke-local-openfoam.ps1 -SampleMeshPath .local-data\naca4412-improved\naca4412.msh -TimeoutSeconds 900
 ```
 
-The NACA 4412 validation path uses `25 m/s`, `2 deg` angle of attack, `1 m` chord, and `nu=1.5e-5 m^2/s` (`Re=1.666666e6`). OpenFOAM `checkMesh` must pass with at least `40,000` cells. The V1 acceptance outputs are `mesh-validation.json`, `checkMesh.log`, `solver.log`, `residuals.csv`, `forceCoeffs.dat`, `forceCoeffs.csv`, VTK files, `openfoam-case.zip`, `openfoam-report.html`, and PNG previews for residuals, velocity magnitude, pressure, and force coefficients.
+The NACA 4412 validation path uses `25 m/s`, `2 deg` angle of attack, `1 m` chord, and `nu=1.5e-5 m^2/s` (`Re=1.666666e6`). OpenFOAM `checkMesh` must pass with at least `40,000` cells. The V1 acceptance outputs are `mesh-validation.json`, `checkMesh.log`, `solver.log`, `residuals.csv`, `forceCoeffs.dat`, `forceCoeffs.csv`, VTK files, `openfoam-case-minimal.zip`, `openfoam-report.html`, and PNG previews for residuals, velocity magnitude, pressure, mesh quality, geometry diagnostics, and force coefficients. Use `AI_CFD_FULL_CASE_ARCHIVE=1` or `.\scripts\dev-openfoam-backend.ps1 -FullCaseArchive` when a full `openfoam-case.zip` is needed for deeper debugging.
 
 Latest accepted local NACA run: `57,292` cells, `Cl=0.4591685`, `Cd=0.02907224`, `Cm=0.09620507`, all parsed from OpenFOAM-generated files.
 

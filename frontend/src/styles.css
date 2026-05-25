@@ -151,6 +151,42 @@ h2 {
   text-transform: capitalize;
 }
 
+.preflight-card {
+  border: 1px solid #d7ddd9;
+  border-radius: 8px;
+  display: grid;
+  gap: 7px;
+  max-width: 680px;
+  padding: 14px;
+}
+
+.preflight-card strong {
+  color: #172026;
+}
+
+.preflight-pass {
+  background: #f1f8f4;
+  border-color: #a9d1b7;
+}
+
+.preflight-fail {
+  background: #fff4ec;
+  border-color: #e9b98f;
+}
+
+.preflight-artifacts,
+.recommendation-list {
+  color: #65746f;
+  font-size: 13px;
+}
+
+.recommendation-list {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding-left: 18px;
+}
+
 .setup-panel {
   display: grid;
   gap: 14px;

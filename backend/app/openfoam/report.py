@@ -103,6 +103,7 @@ def _html(
             for name in ["Cl", "Cd", "Cm"]
         )
     run_quality_cards = _run_quality_cards(geometry_readiness, check_mesh_summary, final_force_row)
+    run_verdict = _run_verdict(geometry_readiness, check_mesh_summary)
     readiness_recommendations = "".join(
         f"<li>{html.escape(str(item))}</li>"
         for item in geometry_readiness.get("recommendations", [])
@@ -133,6 +134,7 @@ a{{color:#075985}}
 <body><div class="wrap">
 <h1>{html.escape(title)}</h1>
 <p class="muted">All values displayed here are parsed from generated OpenFOAM run files.</p>
+<div class="card"><h2>Run verdict</h2><div class="metric">{html.escape(run_verdict)}</div></div>
 <div class="grid">{input_cards}</div>
 <div class="card"><h2>Run quality</h2><div class="grid">{run_quality_cards}</div><ul>{readiness_recommendations}</ul></div>
 <div class="card"><h2>checkMesh summary</h2>
@@ -150,6 +152,7 @@ def _run_quality_cards(geometry_readiness: dict, check_mesh_summary: dict, final
     cards = {
         "Geometry readiness": geometry_readiness.get("status", "n/a"),
         "Repair mode": geometry_readiness.get("repair_mode", "n/a"),
+        "snappyHexMesh profile": geometry_readiness.get("snappy_profile", "n/a"),
         "MeshFix attempted": geometry_readiness.get("meshfix_attempted", "n/a"),
         "surfaceCheck": _pass_text(geometry_readiness.get("surface_check_passed")),
         "checkMesh": _pass_text(check_mesh_summary.get("passed", geometry_readiness.get("check_mesh_passed"))),
@@ -173,3 +176,16 @@ def _pass_text(value) -> str:
     if value is False:
         return "fail"
     return "n/a"
+
+
+def _run_verdict(geometry_readiness: dict, check_mesh_summary: dict) -> str:
+    readiness_status = geometry_readiness.get("status")
+    if readiness_status == "failed_geometry":
+        return "Geometry failed"
+    if readiness_status == "failed_meshing":
+        return "Meshing failed"
+    if readiness_status == "failed_solver_mesh_quality":
+        return "Solver mesh quality failed"
+    if check_mesh_summary.get("passed") is False:
+        return "Solver mesh quality failed"
+    return "Usable result"

@@ -34,6 +34,23 @@ export type UploadRecord = {
   created_at: string;
 };
 
+export type GeometryPreflightArtifact = {
+  display_name: string;
+  type: Artifact["type"];
+  path?: string;
+};
+
+export type GeometryPreflightResponse = {
+  upload_id: string;
+  status: string;
+  passed: boolean;
+  repair_mode?: string | null;
+  meshfix_attempted?: boolean;
+  recommendations: string[];
+  artifacts: GeometryPreflightArtifact[];
+  readiness?: Record<string, unknown>;
+};
+
 export type Artifact = {
   id: string;
   run_id: string;
