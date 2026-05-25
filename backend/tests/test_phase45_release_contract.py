@@ -68,6 +68,7 @@ def test_stl_snappy_smoke_script_validates_real_snappy_artifacts() -> None:
     assert "samples\\obstacle-box.stl" in text
     assert "snappyHexMesh.log" in text
     assert "surfaceCheck.log" in text
+    assert "geometry-diagnostics.json" in text
     assert "checkMesh-strict.log" in text
     assert "external_3d_stl_snappy" in text
     assert "MaxRuntimeMinutes" in smoke_local
@@ -84,6 +85,7 @@ def test_step_snappy_smoke_script_uses_tracked_step_fixture() -> None:
     assert "samples\\obstacle-box.step" in text
     assert "external_3d_stl_snappy" in text
     assert "snappyHexMesh.log" in text
+    assert "geometry-diagnostics.json" in text
 
 
 def test_local_verify_cleans_up_child_server_processes_by_port() -> None:

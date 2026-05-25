@@ -18,19 +18,37 @@ def _spec() -> SimulationSpec:
 
 def _closed_box_stl(path: Path) -> None:
     path.write_text(
-        "\n".join(
-            [
-                "solid box",
-                "  facet normal 0 0 1",
-                "    outer loop",
-                "      vertex 0 0 0",
-                "      vertex 1 0 0",
-                "      vertex 0 1 0",
-                "    endloop",
-                "  endfacet",
-                "endsolid box",
-            ]
-        ),
+        """solid tetra
+  facet normal 0 0 1
+    outer loop
+      vertex 0 0 0
+      vertex 1 0 0
+      vertex 0 1 0
+    endloop
+  endfacet
+  facet normal 0 -1 0
+    outer loop
+      vertex 0 0 0
+      vertex 0 0 1
+      vertex 1 0 0
+    endloop
+  endfacet
+  facet normal 1 1 1
+    outer loop
+      vertex 1 0 0
+      vertex 0 0 1
+      vertex 0 1 0
+    endloop
+  endfacet
+  facet normal -1 0 0
+    outer loop
+      vertex 0 0 0
+      vertex 0 1 0
+      vertex 0 0 1
+    endloop
+  endfacet
+endsolid tetra
+""",
         encoding="ascii",
     )
 
@@ -43,7 +61,8 @@ def test_snappy_builder_creates_external_3d_obstacle_case(tmp_path: Path) -> Non
 
     case_dir = tmp_path / "case"
     copied_stl = case_dir / "constant" / "triSurface" / "obstacle.stl"
-    assert copied_stl.read_text(encoding="ascii").startswith("solid box")
+    assert copied_stl.exists()
+    assert copied_stl.stat().st_size > 0
     assert (case_dir / "system" / "blockMeshDict").exists()
     assert (case_dir / "system" / "snappyHexMeshDict").exists()
     assert (case_dir / "system" / "surfaceFeaturesDict").exists()

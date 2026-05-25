@@ -73,6 +73,43 @@ def _obstacle_mesh(path: Path) -> None:
     )
 
 
+def _closed_tetra_stl(path: Path) -> None:
+    path.write_text(
+        """solid tetra
+  facet normal 0 0 1
+    outer loop
+      vertex 0 0 0
+      vertex 1 0 0
+      vertex 0 1 0
+    endloop
+  endfacet
+  facet normal 0 -1 0
+    outer loop
+      vertex 0 0 0
+      vertex 0 0 1
+      vertex 1 0 0
+    endloop
+  endfacet
+  facet normal 1 1 1
+    outer loop
+      vertex 1 0 0
+      vertex 0 0 1
+      vertex 0 1 0
+    endloop
+  endfacet
+  facet normal -1 0 0
+    outer loop
+      vertex 0 0 0
+      vertex 0 1 0
+      vertex 0 0 1
+    endloop
+  endfacet
+endsolid tetra
+""",
+        encoding="ascii",
+    )
+
+
 @pytest.mark.asyncio
 async def test_runner_dry_run_writes_command_manifest_without_executing(tmp_path: Path) -> None:
     mesh = tmp_path / "wing.msh"
@@ -97,7 +134,7 @@ async def test_runner_dry_run_writes_command_manifest_without_executing(tmp_path
 @pytest.mark.asyncio
 async def test_runner_dry_run_uses_snappy_pipeline_for_stl_upload(tmp_path: Path) -> None:
     stl = tmp_path / "body.stl"
-    stl.write_text("solid body\nendsolid body\n", encoding="ascii")
+    _closed_tetra_stl(stl)
     executor = RecordingExecutor()
     runner = LocalOpenFoamRunner(spec=_spec(), dry_run=True, command_executor=executor)
 
@@ -324,6 +361,38 @@ async def test_runner_fails_airfoil_mesh_validation_before_openfoam_commands(tmp
     assert "Missing required airfoil_2d physical names: frontAndBack" in str(exc_info.value)
     validation = json.loads((tmp_path / "run" / "mesh-validation.json").read_text())
     assert validation["passed"] is False
+
+
+@pytest.mark.asyncio
+async def test_runner_fails_open_stl_before_snappy_commands(tmp_path: Path) -> None:
+    stl = tmp_path / "open.stl"
+    stl.write_text(
+        """solid open
+  facet normal 0 0 1
+    outer loop
+      vertex 0 0 0
+      vertex 1 0 0
+      vertex 0 1 0
+    endloop
+  endfacet
+endsolid open
+""",
+        encoding="ascii",
+    )
+    executor = RecordingExecutor()
+    runner = LocalOpenFoamRunner(spec=_spec(), dry_run=False, command_executor=executor)
+
+    with pytest.raises(RuntimeError) as exc_info:
+        await runner.run_external_aero(
+            prompt="local openfoam stl run",
+            mesh_path=str(stl),
+            output_dir=str(tmp_path / "run"),
+            emit=lambda _status, _message: None,
+        )
+
+    assert executor.commands == []
+    assert "Surface geometry is not solver-ready" in str(exc_info.value)
+    assert (tmp_path / "run" / "geometry-diagnostics.json").exists()
 
 
 @pytest.mark.asyncio

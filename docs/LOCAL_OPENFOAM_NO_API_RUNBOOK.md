@@ -108,6 +108,8 @@ Run real surface/CAD intake gates:
 
 The STEP path first converts CAD to an STL surface with Gmsh, then uses the same `snappyHexMesh` case builder as direct STL uploads. This is a real improvement over requiring STEP to become a Gmsh `.msh` with physical names, but complex CAD can still need cleanup before Gmsh can export a watertight surface.
 
+Every STL/STEP snappy run now writes `geometry-diagnostics.json` before OpenFOAM commands execute. It records triangle count, disconnected body count, watertightness, winding consistency, volume, scale hints, safe repair attempts, and recommended cleanup actions.
+
 Full local V1 release acceptance:
 
 ```powershell

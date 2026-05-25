@@ -78,6 +78,7 @@ This is a simplified roadmap for non-software stakeholders, while keeping the ke
 - Clearer STEP/STL conversion failures for missing Gmsh, missing volume meshes, missing physical names, and bad geometry.
 - Dedicated local OpenFOAM STL path using `snappyHexMesh` scaffolding, `surfaceCheck`, `blockMesh`, `surfaceFeatures`, `snappyHexMesh`, and `checkMesh`.
 - STEP/STP uploads now convert to STL surfaces and use the same `snappyHexMesh` path.
+- STL/STEP uploads now create `geometry-diagnostics.json` before OpenFOAM runs, using `trimesh`/`networkx` checks for watertightness, disconnected bodies, normals/winding, volume, scale, and basic repair attempts.
 - Manual STL case helper: `scripts/generate-snappy-stl-case.ps1`.
 - Real STL and STEP snappy smoke scripts: `scripts/smoke-stl-snappy-openfoam.ps1`, `scripts/smoke-step-snappy-openfoam.ps1`.
 - WSL/OpenFOAM preflight now also reports Windows Gmsh availability for NACA generation and STEP/STL conversion.
@@ -85,7 +86,7 @@ This is a simplified roadmap for non-software stakeholders, while keeping the ke
 
 **Remaining after the current V1 candidate:**
 - Upgrade from PNG inspection to richer contour/interactivity when PyVista/vtk.js is introduced.
-- Keep running fresh real NACA and bad-mesh smoke validation after solver-path changes.
+- Keep running fresh real NACA, STL, STEP, and bad-mesh smoke validation after solver-path changes.
 - Broaden user-mesh examples after real third-party `.msh` files are tested.
 
 **Keywords:** `OpenFOAM`, `WSL2`, `no API key`, `deterministic templates`, `real run`, `artifacts`.
@@ -100,6 +101,7 @@ This is a simplified roadmap for non-software stakeholders, while keeping the ke
 - STL/snappyHexMesh command checks in the same preflight.
 - Machine/runtime snapshot through `scripts\runtime-report.ps1`, which writes `.local-data/runtime-report.json`.
 - Dry-run, real NACA, and bad-mesh smoke scripts.
+- Real STL and STEP smoke scripts with required `geometry-diagnostics.json` artifacts.
 - Docker/Foam-Agent remains optional parity/advanced infrastructure, not a V1 requirement.
 - Local non-Docker workflow stays the primary iteration path.
 

@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import json
-import shutil
 from pathlib import Path
 
+from app.geometry_diagnostics import prepare_surface_for_snappy
 from app.openfoam.case_builder import (
     _foam_number,
     _foam_tuple,
@@ -58,7 +58,18 @@ def build_snappy_stl_case(*, spec: SimulationSpec, stl_path: Path, case_dir: Pat
     for child in ("0", "constant", "constant/triSurface", "system"):
         (case_dir / child).mkdir(exist_ok=True)
 
-    shutil.copy2(stl_path, case_dir / "constant" / "triSurface" / "obstacle.stl")
+    diagnostics_path = case_dir.parent / "geometry-diagnostics.json"
+    surface_path = case_dir / "constant" / "triSurface" / "obstacle.stl"
+    geometry_diagnostics = prepare_surface_for_snappy(
+        source_path=stl_path,
+        target_path=surface_path,
+        diagnostics_path=diagnostics_path,
+    )
+    if not geometry_diagnostics["passed"]:
+        raise RuntimeError(
+            "Surface geometry is not solver-ready: "
+            + " ".join(geometry_diagnostics["recommendations"])
+        )
     domain = _domain(spec.length_scale)
     cells = _base_cells(spec.mesh_quality)
     force_coefficients = _force_coefficients_config(spec)
@@ -99,13 +110,14 @@ def build_snappy_stl_case(*, spec: SimulationSpec, stl_path: Path, case_dir: Pat
         "domain": domain,
         "base_cells": cells,
         "flow_assumption": "steady incompressible external aerodynamics",
+        "geometry_diagnostics": geometry_diagnostics,
         "force_coefficients": force_coefficients,
         "commands": snappy_openfoam_commands(),
         "files": sorted(["constant/triSurface/obstacle.stl", *files.keys()]),
         "limitations": [
             "STL must be closed/watertight and consistently scaled before snappyHexMesh can make a reliable volume mesh.",
             "This V1 STL path creates a conservative external flow box automatically; inspect snappyHexMesh.log and checkMesh.log before trusting results.",
-            "STEP/CAD cleanup is not handled by this path yet; use a premeshed .msh when exact boundary control matters.",
+            "Only basic surface diagnostics and safe repairs are attempted; use a premeshed .msh when exact boundary control matters.",
         ],
     }
     (case_dir / "snappy-manifest.json").write_text(
