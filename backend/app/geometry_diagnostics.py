@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import os
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -13,29 +15,54 @@ def prepare_surface_for_snappy(
     source_path: Path,
     target_path: Path,
     diagnostics_path: Path,
+    repair_mode: str | None = None,
 ) -> dict[str, Any]:
+    repair_mode = (repair_mode or os.environ.get("AI_CFD_SURFACE_REPAIR", "basic")).lower()
     mesh = _load_mesh(source_path)
     diagnostics = _diagnostics(mesh, source_path)
+    diagnostics.update(
+        {
+            "repair_mode": repair_mode,
+            "repair_stages": [],
+            "meshfix_attempted": False,
+            "meshfix_success": False,
+            "meshfix_error": None,
+        }
+    )
 
-    repair.fix_winding(mesh)
-    repair.fix_normals(mesh, multibody=True)
-    fill_holes_changed = bool(repair.fill_holes(mesh))
-    mesh.remove_unreferenced_vertices()
+    basic_repair = _apply_trimesh_repair(mesh)
+    _add_stage(diagnostics, "trimesh_basic", mesh)
+
+    if not _mesh_passed(mesh) and repair_mode in {"meshfix", "aggressive"}:
+        diagnostics["meshfix_attempted"] = True
+        repaired_mesh, meshfix_error = _repair_with_meshfix(source_path, diagnostics_path)
+        diagnostics["meshfix_error"] = meshfix_error
+        if repaired_mesh is not None:
+            mesh = repaired_mesh
+            meshfix_repair = _apply_trimesh_repair(mesh)
+            basic_repair["fill_holes_changed"] = (
+                basic_repair["fill_holes_changed"] or meshfix_repair["fill_holes_changed"]
+            )
+            basic_repair["degenerate_faces_removed"] += meshfix_repair["degenerate_faces_removed"]
+            basic_repair["vertices_merged"] += meshfix_repair["vertices_merged"]
+            diagnostics["meshfix_success"] = _mesh_passed(mesh)
+            _add_stage(diagnostics, "meshfix", mesh)
 
     diagnostics.update(
         {
             "repair_attempted": True,
-            "fill_holes_changed": fill_holes_changed,
+            "fill_holes_changed": basic_repair["fill_holes_changed"],
+            "degenerate_faces_removed": basic_repair["degenerate_faces_removed"],
+            "vertices_merged": basic_repair["vertices_merged"],
             "watertight_after_repair": bool(mesh.is_watertight),
             "volume_after_repair": _mesh_volume(mesh),
             "broken_face_count": _broken_face_count(mesh),
+            "face_count_after_repair": int(len(mesh.faces)),
+            "vertex_count_after_repair": int(len(mesh.vertices)),
+            "body_count_after_repair": _body_count(mesh),
         }
     )
-    diagnostics["passed"] = bool(
-        diagnostics["watertight_after_repair"]
-        and diagnostics["face_count"] > 0
-        and diagnostics["volume_after_repair"] > 0
-    )
+    diagnostics["passed"] = _mesh_passed(mesh)
     diagnostics["recommendations"] = _recommendations(diagnostics)
 
     diagnostics_path.parent.mkdir(parents=True, exist_ok=True)
@@ -46,6 +73,63 @@ def prepare_surface_for_snappy(
         mesh.export(target_path, file_type="stl")
 
     return diagnostics
+
+
+def _apply_trimesh_repair(mesh: trimesh.Trimesh) -> dict[str, Any]:
+    faces_before = int(len(mesh.faces))
+    if faces_before:
+        mesh.update_faces(mesh.nondegenerate_faces())
+    degenerate_faces_removed = faces_before - int(len(mesh.faces))
+    vertices_before_merge = int(len(mesh.vertices))
+    mesh.merge_vertices()
+    repair.fix_winding(mesh)
+    repair.fix_normals(mesh, multibody=True)
+    fill_holes_changed = bool(repair.fill_holes(mesh))
+    # Hole filling can create a closed but inward-oriented mesh; normalize again after topology changes.
+    repair.fix_winding(mesh)
+    repair.fix_normals(mesh, multibody=True)
+    mesh.remove_unreferenced_vertices()
+    return {
+        "fill_holes_changed": fill_holes_changed,
+        "degenerate_faces_removed": degenerate_faces_removed,
+        "vertices_merged": vertices_before_merge - int(len(mesh.vertices)),
+    }
+
+
+def _repair_with_meshfix(
+    source_path: Path, diagnostics_path: Path
+) -> tuple[trimesh.Trimesh | None, str | None]:
+    try:
+        import pymeshfix
+    except Exception as exc:
+        return None, f"PyMeshFix is not installed or could not be imported: {exc}"
+
+    try:
+        with tempfile.TemporaryDirectory(prefix="meshfix-", dir=diagnostics_path.parent) as repair_dir:
+            repaired_path = Path(repair_dir) / "repaired.stl"
+            pymeshfix.clean_from_file(str(source_path), str(repaired_path))
+            return _load_mesh(repaired_path), None
+    except Exception as exc:
+        return None, f"PyMeshFix repair failed: {exc}"
+
+
+def _mesh_passed(mesh: trimesh.Trimesh) -> bool:
+    return bool(mesh.is_watertight and len(mesh.faces) > 0 and _mesh_volume(mesh) > 0)
+
+
+def _add_stage(diagnostics: dict[str, Any], name: str, mesh: trimesh.Trimesh) -> None:
+    diagnostics["repair_stages"].append(
+        {
+            "name": name,
+            "face_count": int(len(mesh.faces)),
+            "vertex_count": int(len(mesh.vertices)),
+            "body_count": _body_count(mesh),
+            "watertight": bool(mesh.is_watertight),
+            "winding_consistent": bool(mesh.is_winding_consistent),
+            "volume": _mesh_volume(mesh),
+            "passed": _mesh_passed(mesh),
+        }
+    )
 
 
 def _load_mesh(path: Path) -> trimesh.Trimesh:

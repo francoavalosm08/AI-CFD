@@ -87,6 +87,8 @@ Implemented:
 - STL uploads in local OpenFOAM mode now route to a dedicated `snappyHexMesh` case scaffold instead of being forced through weak Gmsh conversion.
 - STEP/STP uploads in local OpenFOAM mode now use Gmsh to export an STL surface, then route through the same `snappyHexMesh` case scaffold.
 - STL/STEP surface intake now runs a pre-solver geometry diagnostic using `trimesh` plus `networkx`. It writes `geometry-diagnostics.json`, checks watertightness, disconnected body count, winding consistency, enclosed volume, scale hints, and safe repair attempts, then stops before OpenFOAM if the surface is not solver-ready.
+- Conservative repair now removes degenerate triangles, merges duplicate vertices, fixes winding/normals before and after hole filling, and exports the repaired STL only if the surface has positive enclosed volume.
+- Optional aggressive repair is available with `AI_CFD_SURFACE_REPAIR=meshfix` or `scripts\dev-openfoam-backend.ps1 -EnableAggressiveSurfaceRepair`. This uses PyMeshFix only after conservative repair fails, and records the MeshFix attempt/result in `geometry-diagnostics.json`.
 - `scripts\generate-snappy-stl-case.ps1` builds an inspectable local STL case under `.local-data\snappy-stl-case\` using `surfaceCheck`, `blockMesh`, `surfaceFeatures`, `snappyHexMesh`, and `checkMesh` commands.
 - The tracked `samples\obstacle-box.stl` and `samples\obstacle-box.step` fixtures give repeatable local checks for both surface and CAD intake.
 

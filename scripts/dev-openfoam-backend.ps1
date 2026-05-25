@@ -7,6 +7,7 @@ param(
     [string]$Runtime = $(if ($env:OPENFOAM_RUNTIME) { $env:OPENFOAM_RUNTIME } else { "wsl" }),
     [string]$Distro = $(if ($env:OPENFOAM_WSL_DISTRO) { $env:OPENFOAM_WSL_DISTRO } else { "" }),
     [string]$Bashrc = $(if ($env:OPENFOAM_BASHRC) { $env:OPENFOAM_BASHRC } else { "/opt/openfoam*/etc/bashrc" }),
+    [switch]$EnableAggressiveSurfaceRepair,
     [switch]$NoReload
 )
 
@@ -77,7 +78,8 @@ if (-not $SkipDependencyInstall) {
     Write-Host "Installing backend dependencies..."
     Push-Location $backendPath
     try {
-        & $venvPython -m pip install -e ".[test]"
+        $backendExtras = if ($EnableAggressiveSurfaceRepair) { ".[test,surface-repair]" } else { ".[test]" }
+        & $venvPython -m pip install -e $backendExtras
     } finally {
         Pop-Location
     }
@@ -98,9 +100,15 @@ if ($DryRun) {
 } else {
     Remove-Item Env:\OPENFOAM_DRY_RUN -ErrorAction SilentlyContinue
 }
+if ($EnableAggressiveSurfaceRepair) {
+    $env:AI_CFD_SURFACE_REPAIR = "meshfix"
+} else {
+    Remove-Item Env:\AI_CFD_SURFACE_REPAIR -ErrorAction SilentlyContinue
+}
 
 $dryRunText = if ($DryRun) { "enabled" } else { "disabled" }
-Write-Host "Starting backend on http://localhost:$Port (CFD_RUNNER_MODE=local_openfoam, runtime=$Runtime, dry-run=$dryRunText, AI_CFD_DATA_ROOT=$dataRoot)"
+$surfaceRepairText = if ($EnableAggressiveSurfaceRepair) { "meshfix" } else { "basic" }
+Write-Host "Starting backend on http://localhost:$Port (CFD_RUNNER_MODE=local_openfoam, runtime=$Runtime, dry-run=$dryRunText, surface-repair=$surfaceRepairText, AI_CFD_DATA_ROOT=$dataRoot)"
 Push-Location $backendPath
 try {
     $uvicornArgs = @("-m", "uvicorn", "app.main:app", "--host", $BindHost, "--port", [string]$Port)

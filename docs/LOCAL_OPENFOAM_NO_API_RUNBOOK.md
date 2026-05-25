@@ -110,10 +110,24 @@ The STEP path first converts CAD to an STL surface with Gmsh, then uses the same
 
 Every STL/STEP snappy run now writes `geometry-diagnostics.json` before OpenFOAM commands execute. It records triangle count, disconnected body count, watertightness, winding consistency, volume, scale hints, safe repair attempts, and recommended cleanup actions.
 
+The default repair mode is conservative: `trimesh` removes degenerate triangles, merges duplicate vertices, fixes winding/normals, and fills simple triangle/quad holes. For local-only aggressive repair experiments, start the backend with:
+
+```powershell
+.\scripts\dev-openfoam-backend.ps1 -EnableAggressiveSurfaceRepair
+```
+
+That installs the optional `surface-repair` extra and sets `AI_CFD_SURFACE_REPAIR=meshfix`, enabling PyMeshFix only after the conservative repair cannot make the surface solver-ready. Keep this opt-in: PyMeshFix is useful for damaged scanned meshes, but it can change geometry and has license/commercial-use constraints.
+
 Full local V1 release acceptance:
 
 ```powershell
 .\scripts\release-v1-local.ps1
+```
+
+To include the same aggressive repair mode in the local V1 gate:
+
+```powershell
+.\scripts\release-v1-local.ps1 -EnableAggressiveSurfaceRepair
 ```
 
 This runs the runtime report, fast release check, WSL/OpenFOAM preflight, real NACA validation, and bad-mesh validation against a temporary local OpenFOAM backend.

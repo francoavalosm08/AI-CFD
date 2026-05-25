@@ -101,32 +101,35 @@ Do not accept future NACA validation runs as successful if `checkMesh` fails, Op
 
 - STL uploads in local OpenFOAM mode now bypass weak Gmsh conversion and use a dedicated `snappyHexMesh` scaffold.
 - STEP/STP uploads in local OpenFOAM mode now export an STL surface with Gmsh and use the same `snappyHexMesh` scaffold.
-- STL/STEP snappy runs now perform a Python `trimesh`/`networkx` geometry diagnostic gate before OpenFOAM commands execute. The gate writes `geometry-diagnostics.json`, checks triangle/body counts, watertightness, winding consistency, enclosed volume, scale hints, and safe repair attempts, then fails before `surfaceCheck`/`snappyHexMesh` if the surface is not solver-ready.
+- STL/STEP snappy runs now perform a Python `trimesh`/`networkx` geometry diagnostic gate before OpenFOAM commands execute. The gate writes `geometry-diagnostics.json`, checks triangle/body counts, watertightness, winding consistency, enclosed volume, scale hints, degenerate faces, and safe repair attempts, then fails before `surfaceCheck`/`snappyHexMesh` if the surface is not solver-ready.
+- Conservative surface repair removes degenerate triangles, merges duplicate vertices, fixes winding/normals before and after hole filling, and exports the repaired STL only if it is watertight with positive enclosed volume.
+- Optional aggressive repair is available through `AI_CFD_SURFACE_REPAIR=meshfix`, `scripts\dev-openfoam-backend.ps1 -EnableAggressiveSurfaceRepair`, or `scripts\release-v1-local.ps1 -EnableAggressiveSurfaceRepair`. This installs/uses the optional `surface-repair` extra (`pymeshfix`) only after conservative repair fails, and records the MeshFix attempt/result in `geometry-diagnostics.json`. Keep it opt-in because PyMeshFix can alter geometry and has GPL/AGPL/commercial-use constraints.
 - The scaffold writes `constant/triSurface/obstacle.stl`, `system/blockMeshDict`, `system/surfaceFeaturesDict`, `system/snappyHexMeshDict`, `system/meshQualityDict`, `system/forceCoeffs`, `case-manifest.json`, and `snappy-manifest.json`.
 - The STL command sequence is `surfaceCheck`, `blockMesh`, `surfaceFeatures`, `snappyHexMesh -overwrite`, required default `checkMesh`, optional strict `checkMesh -allGeometry -allTopology`, `simpleFoam`, and optional `foamToVTK -ascii`.
 - `scripts\generate-snappy-stl-case.ps1` generates an inspectable local snappy case from `samples\obstacle-box.stl`.
 - `scripts\smoke-stl-snappy-openfoam.ps1` and `scripts\smoke-step-snappy-openfoam.ps1` are real API smoke gates for `samples\obstacle-box.stl` and `samples\obstacle-box.step`.
 - Latest manual WSL mesh check for `samples\obstacle-box.stl`: `surfaceCheck` reported the surface closed/no illegal triangles, `snappyHexMesh` finished without errors, required `checkMesh` reported `Mesh OK` with `12,538` cells, and strict diagnostics reported `96` concave cells in `checkMesh-strict.log`.
 - Latest API dry-run STL smoke passed against a temporary local OpenFOAM backend as run `2b15e970-f1f9-4722-a2bc-d56a10286080`, with 6 artifacts and 6 events.
-- Latest real STL snappy API smoke passed as run `97548450-67d0-47a2-a8b9-00c642909ece`, with 39 artifacts and 9 events, including `geometry-diagnostics.json`.
-- Latest real STEP-to-STL snappy API smoke passed as run `be35d4a2-763e-4216-bce4-c599df36b9c7`, with 39 artifacts and 9 events, including `geometry-diagnostics.json`.
+- Latest real STL snappy API smoke passed as run `546f0cab-ca05-457a-ada4-0aa8429d3761`, with 39 artifacts and 9 events, including `geometry-diagnostics.json` with `repair_mode=meshfix` and `meshfix_attempted=false` because conservative repair already passed.
+- Latest real STEP-to-STL snappy API smoke passed as run `bd1e3caf-9987-469f-af51-ecb2cea10ba7`, with 39 artifacts and 9 events, including `geometry-diagnostics.json` with `repair_mode=meshfix` and `meshfix_attempted=false` because conservative repair already passed.
 - Latest real local V1 gate with STL and STEP included passed:
-  - NACA 4412 run `5be2fea4-f28e-4738-aa36-af97261cee42`.
-  - STL snappy run `97548450-67d0-47a2-a8b9-00c642909ece`.
-  - STEP-to-STL snappy run `be35d4a2-763e-4216-bce4-c599df36b9c7`.
-  - Bad mesh clean-failure run `24669a56-6c7e-4c81-9e50-d674b467aeb8`.
+  - NACA 4412 run `a77f94d4-2510-4c35-bf26-d9ac44f62c75`.
+  - STL snappy run `546f0cab-ca05-457a-ada4-0aa8429d3761`.
+  - STEP-to-STL snappy run `bd1e3caf-9987-469f-af51-ecb2cea10ba7`.
+  - Bad mesh clean-failure run `cc61957f-adda-41db-a669-fedc0ac75115`.
 - `scripts\dev-openfoam-wsl.ps1 -CheckOnly` and `scripts\runtime-report.ps1` now check/report `surfaceCheck`, `blockMesh`, `surfaceFeatures`, and `snappyHexMesh`.
 - This improves arbitrary STL reliability but does not make arbitrary geometry guaranteed; bad scale, holes, self-intersections, non-manifold topology, and strict mesh diagnostics can still require geometry cleanup.
 
 ## Latest Full Local Gate (2026-05-25)
 
-- `py -m pytest backend` -> **120 passed**.
-- `scripts\release-check.ps1` -> **PASS**: backend 120 tests, frontend 8 tests, fake smoke, browser E2E, and local OpenFOAM dry-run smoke.
-- `scripts\release-v1-local.ps1 -SkipReleaseCheck -SkipRuntimeReport` -> **PASS**.
-  - NACA 4412 real run `5be2fea4-f28e-4738-aa36-af97261cee42`: completed with 144 artifacts and 9 events.
-  - STL snappy run `97548450-67d0-47a2-a8b9-00c642909ece`: completed with 39 artifacts and 9 events.
-  - STEP-to-STL snappy run `be35d4a2-763e-4216-bce4-c599df36b9c7`: completed with 39 artifacts and 9 events.
-  - Bad airfoil mesh run `24669a56-6c7e-4c81-9e50-d674b467aeb8`: failed cleanly before OpenFOAM execution.
+- `py -m pytest backend` -> **122 passed, 1 skipped** using the default environment; the skipped test is the optional PyMeshFix integration check when the `surface-repair` extra is not installed.
+- `.venv\Scripts\python.exe -m pytest backend\tests\test_geometry_diagnostics.py -q` with `surface-repair` installed -> **5 passed**.
+- `scripts\release-check.ps1` -> **PASS**: backend 123 tests, frontend 8 tests, fake smoke, browser E2E, and local OpenFOAM dry-run smoke.
+- `scripts\release-v1-local.ps1 -SkipReleaseCheck -SkipRuntimeReport -EnableAggressiveSurfaceRepair` -> **PASS**.
+  - NACA 4412 real run `a77f94d4-2510-4c35-bf26-d9ac44f62c75`: completed with 144 artifacts and 9 events.
+  - STL snappy run `546f0cab-ca05-457a-ada4-0aa8429d3761`: completed with 39 artifacts and 9 events.
+  - STEP-to-STL snappy run `bd1e3caf-9987-469f-af51-ecb2cea10ba7`: completed with 39 artifacts and 9 events.
+  - Bad airfoil mesh run `cc61957f-adda-41db-a669-fedc0ac75115`: failed cleanly before OpenFOAM execution.
 
 ## Recent Work (Phase 3 — 2026-05-22)
 
@@ -295,7 +298,7 @@ Optional Foam-Agent/MCP mode (requires Docker + `.env` API key):
 The latest verified baseline passed:
 
 - Python/backend prerequisite check, including Gmsh 4.13.1.
-- Backend pytest suite: **120 tests** (includes MCP, preflight, mirroring, local OpenFOAM, mesh conversion, mesh validation, STL geometry diagnostics, force coefficients, status persistence, non-blocking archive packaging, mesh corpus/generator coverage, Phase 4/5 release contracts, release-script cleanup, and CI workflow coverage).
+- Backend pytest suite: **123 tests** (includes MCP, preflight, mirroring, local OpenFOAM, mesh conversion, mesh validation, STL geometry diagnostics/repair, force coefficients, status persistence, non-blocking archive packaging, mesh corpus/generator coverage, Phase 4/5 release contracts, release-script cleanup, and CI workflow coverage).
 - Frontend Vitest suite: 8 tests.
 - Fake-mode backend smoke flow (`local-verify.ps1 -Scope backend`).
 - Playwright browser E2E workflow (via full `release-check.ps1`).

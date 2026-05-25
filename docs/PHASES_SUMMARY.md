@@ -78,7 +78,8 @@ This is a simplified roadmap for non-software stakeholders, while keeping the ke
 - Clearer STEP/STL conversion failures for missing Gmsh, missing volume meshes, missing physical names, and bad geometry.
 - Dedicated local OpenFOAM STL path using `snappyHexMesh` scaffolding, `surfaceCheck`, `blockMesh`, `surfaceFeatures`, `snappyHexMesh`, and `checkMesh`.
 - STEP/STP uploads now convert to STL surfaces and use the same `snappyHexMesh` path.
-- STL/STEP uploads now create `geometry-diagnostics.json` before OpenFOAM runs, using `trimesh`/`networkx` checks for watertightness, disconnected bodies, normals/winding, volume, scale, and basic repair attempts.
+- STL/STEP uploads now create `geometry-diagnostics.json` before OpenFOAM runs, using `trimesh`/`networkx` checks for watertightness, disconnected bodies, normals/winding, volume, scale, degenerate faces, and conservative repair attempts.
+- Optional aggressive PyMeshFix repair can be enabled with `AI_CFD_SURFACE_REPAIR=meshfix` or `scripts\dev-openfoam-backend.ps1 -EnableAggressiveSurfaceRepair`; it is opt-in because it can alter geometry and has license/commercial-use constraints.
 - Manual STL case helper: `scripts/generate-snappy-stl-case.ps1`.
 - Real STL and STEP snappy smoke scripts: `scripts/smoke-stl-snappy-openfoam.ps1`, `scripts/smoke-step-snappy-openfoam.ps1`.
 - WSL/OpenFOAM preflight now also reports Windows Gmsh availability for NACA generation and STEP/STL conversion.

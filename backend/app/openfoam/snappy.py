@@ -117,7 +117,7 @@ def build_snappy_stl_case(*, spec: SimulationSpec, stl_path: Path, case_dir: Pat
         "limitations": [
             "STL must be closed/watertight and consistently scaled before snappyHexMesh can make a reliable volume mesh.",
             "This V1 STL path creates a conservative external flow box automatically; inspect snappyHexMesh.log and checkMesh.log before trusting results.",
-            "Only basic surface diagnostics and safe repairs are attempted; use a premeshed .msh when exact boundary control matters.",
+            "Surface diagnostics and configured repair are best-effort; use a premeshed .msh when exact boundary control matters.",
         ],
     }
     (case_dir / "snappy-manifest.json").write_text(

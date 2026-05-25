@@ -39,6 +39,8 @@ def test_phase5_local_v1_acceptance_script_runs_all_release_gates() -> None:
     assert "smoke-stl-snappy-openfoam.ps1" in text
     assert "smoke-step-snappy-openfoam.ps1" in text
     assert "IncludeValidationMeshSuite" in text
+    assert "EnableAggressiveSurfaceRepair" in text
+    assert "surface-repair" in text
     assert "smoke-validation-mesh-suite.ps1" in text
     assert "release-v1-local.ps1" in phase_summary
     assert "release-v1-local.ps1" in roadmap

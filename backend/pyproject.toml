@@ -18,6 +18,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+surface-repair = [
+  "pymeshfix>=0.18.1",
+]
 test = [
   "pytest>=8.3",
   "pytest-asyncio>=0.24",

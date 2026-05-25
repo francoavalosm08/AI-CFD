@@ -11,6 +11,7 @@ param(
     [int]$ValidationMeshNacaTimeoutSeconds = 1800,
     [int]$BadMeshTimeoutSeconds = 120,
     [int]$PollIntervalSeconds = 5,
+    [switch]$EnableAggressiveSurfaceRepair,
     [string]$BindHost = "127.0.0.1"
 )
 
@@ -72,7 +73,8 @@ function Start-LocalOpenFoamBackend {
         [Parameter(Mandatory = $true)][string]$BackendScript,
         [Parameter(Mandatory = $true)][int]$Port,
         [Parameter(Mandatory = $true)][string]$StdoutLog,
-        [Parameter(Mandatory = $true)][string]$StderrLog
+        [Parameter(Mandatory = $true)][string]$StderrLog,
+        [switch]$EnableAggressiveSurfaceRepair
     )
 
     Stop-PortProcess -Port $Port
@@ -86,6 +88,9 @@ function Start-LocalOpenFoamBackend {
         "-BindHost", $BindHost,
         "-Port", [string]$Port
     )
+    if ($EnableAggressiveSurfaceRepair) {
+        $args += "-EnableAggressiveSurfaceRepair"
+    }
     return Start-Process -FilePath "powershell.exe" -ArgumentList $args -RedirectStandardOutput $StdoutLog -RedirectStandardError $StderrLog -WindowStyle Hidden -PassThru
 }
 
@@ -128,6 +133,9 @@ function Wait-LocalOpenFoamBackend {
 
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repoRoot = (Resolve-Path (Join-Path $scriptRoot "..")).Path
+$backendPath = Join-Path $repoRoot "backend"
+$venvPath = Join-Path $repoRoot ".venv"
+$venvPython = Join-Path $venvPath "Scripts\python.exe"
 $logRoot = Join-Path $repoRoot ".local-data\verify-logs"
 New-Item -ItemType Directory -Force -Path $logRoot | Out-Null
 
@@ -169,6 +177,25 @@ if ($SkipRealOpenFoam) {
 
 Run-FileScript -Path $preflightScript -Arguments @("-CheckOnly")
 
+if ($EnableAggressiveSurfaceRepair) {
+    if (-not (Test-Path $venvPath)) {
+        if (-not (Get-Command "py" -ErrorAction SilentlyContinue)) {
+            Fail "Python launcher 'py' was not found; cannot install aggressive surface repair dependency."
+        }
+        & py -3 -m venv $venvPath
+    }
+    if (-not (Test-Path $venvPython)) {
+        Fail "Could not find venv python at $venvPython."
+    }
+    Write-Host "Installing optional PyMeshFix surface repair dependency..."
+    Push-Location $backendPath
+    try {
+        & $venvPython -m pip install -e ".[test,surface-repair]"
+    } finally {
+        Pop-Location
+    }
+}
+
 $port = Get-FreeTcpPort
 $baseUrl = "http://127.0.0.1:$port"
 $stdoutLog = Join-Path $logRoot "release-v1-openfoam-backend.out.log"
@@ -177,7 +204,7 @@ $backendProcess = $null
 
 try {
     Write-Host "Starting local OpenFOAM backend for real V1 gates on $baseUrl ..."
-    $backendProcess = Start-LocalOpenFoamBackend -BackendScript $backendScript -Port $port -StdoutLog $stdoutLog -StderrLog $stderrLog
+    $backendProcess = Start-LocalOpenFoamBackend -BackendScript $backendScript -Port $port -StdoutLog $stdoutLog -StderrLog $stderrLog -EnableAggressiveSurfaceRepair:$EnableAggressiveSurfaceRepair
     Wait-LocalOpenFoamBackend -BaseUrl $baseUrl -Process $backendProcess -StdoutLog $stdoutLog -StderrLog $stderrLog
 
     Run-FileScript -Path $nacaSmokeScript -Arguments @(
