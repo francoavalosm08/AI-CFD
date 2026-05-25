@@ -60,7 +60,15 @@ if ($windowsGmsh) {
     Write-Warning "Windows Gmsh was not found on PATH. Existing premeshed .msh uploads can still run, but NACA generation and STEP/STL conversion need Gmsh."
 }
 
-$requiredCommands = @("gmshToFoam", "checkMesh", "simpleFoam")
+$requiredCommands = @(
+    "gmshToFoam",
+    "checkMesh",
+    "simpleFoam",
+    "surfaceCheck",
+    "blockMesh",
+    "surfaceFeatures",
+    "snappyHexMesh"
+)
 $optionalCommands = @("foamToVTK")
 $requiredCheck = (($requiredCommands + $optionalCommands) | ForEach-Object { "command -v $_" }) -join " && "
 $bashCommand = "set +u; source $Bashrc >/dev/null 2>&1 || true; $requiredCheck"

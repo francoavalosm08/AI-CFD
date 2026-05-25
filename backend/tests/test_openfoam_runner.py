@@ -95,6 +95,32 @@ async def test_runner_dry_run_writes_command_manifest_without_executing(tmp_path
 
 
 @pytest.mark.asyncio
+async def test_runner_dry_run_uses_snappy_pipeline_for_stl_upload(tmp_path: Path) -> None:
+    stl = tmp_path / "body.stl"
+    stl.write_text("solid body\nendsolid body\n", encoding="ascii")
+    executor = RecordingExecutor()
+    runner = LocalOpenFoamRunner(spec=_spec(), dry_run=True, command_executor=executor)
+
+    result = await runner.run_external_aero(
+        prompt="local openfoam stl run",
+        mesh_path=str(stl),
+        output_dir=str(tmp_path / "run"),
+        emit=lambda _status, _message: None,
+    )
+
+    manifest = json.loads((tmp_path / "run" / "openfoam-commands.json").read_text())
+    assert result["manifest"]["case_type"] == "external_3d_stl_snappy"
+    assert [command["name"] for command in result["commands"]][:4] == [
+        "surface_check",
+        "block_mesh",
+        "surface_features",
+        "snappy_hex_mesh",
+    ]
+    assert manifest["mesh_validation"]["case_type"] == "external_3d_stl_snappy"
+    assert (tmp_path / "run" / "case" / "constant" / "triSurface" / "obstacle.stl").exists()
+
+
+@pytest.mark.asyncio
 async def test_runner_dry_run_manifest_records_wsl_runtime_and_paths(tmp_path: Path) -> None:
     mesh = tmp_path / "wing.msh"
     mesh.write_text("$MeshFormat\n2.2 0 8\n")

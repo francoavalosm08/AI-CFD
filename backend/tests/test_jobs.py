@@ -127,6 +127,49 @@ async def test_run_executor_fails_stl_with_clear_mesh_conversion_error(tmp_path:
 
 
 @pytest.mark.asyncio
+async def test_run_executor_passes_stl_directly_to_surface_aware_local_runner(tmp_path: Path):
+    upload = UploadRecord(
+        id="upload-1",
+        original_name="body.stl",
+        stored_path=str(tmp_path / "uploads" / "body.stl"),
+        kind="surface_mesh",
+    )
+    Path(upload.stored_path).parent.mkdir()
+    Path(upload.stored_path).write_text("solid body\nendsolid body\n")
+    run = RunRecord(
+        id="run-1",
+        upload_id=upload.id,
+        status=RunStatus.queued,
+        spec=SimulationSpec(upload_id=upload.id, units="m", length_scale=1, velocity=20),
+    )
+
+    class SurfaceAwareRunner:
+        mesh_path_mode = "host"
+        accepts_surface_mesh = True
+
+        def __init__(self) -> None:
+            self.mesh_path = ""
+
+        async def run_external_aero(self, *, prompt, mesh_path, output_dir, emit):
+            self.mesh_path = mesh_path
+            return {"mesh_path": mesh_path}
+
+    runner = SurfaceAwareRunner()
+    executor = RunExecutor(
+        foam_agent=runner,
+        app_data_root=tmp_path,
+        agent_data_root="/workspace/data",
+        emit=lambda *_args: None,
+        gmsh_command="definitely-missing-gmsh",
+    )
+
+    result = await executor.execute(run, upload)
+
+    assert result.status == RunStatus.completed
+    assert runner.mesh_path.endswith("body.stl")
+
+
+@pytest.mark.asyncio
 async def test_run_executor_discovers_artifacts_written_before_failure(tmp_path: Path):
     upload = UploadRecord(
         id="upload-1",

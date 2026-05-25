@@ -73,7 +73,7 @@ The local HTML report includes force coefficient links and final coefficient val
 
 ## Phase 3D: `.msh` Production Workflow Hardening
 
-Status: implemented for V1.
+Status: implemented for V1; STL/snappyHexMesh reliability slice added.
 
 Implemented:
 
@@ -84,6 +84,11 @@ Implemented:
 - `docs/GMSH_AIRFOIL_2D_TEMPLATE.md` documents the required physical names and a known-good generation path.
 - STEP/STL conversion failures distinguish missing Gmsh, missing volume mesh, missing physical names, and general geometry failures.
 - Converted STEP/STL/CAD meshes without Gmsh `PhysicalNames` fail before the solver with an explicit premeshed `.msh` recommendation.
+- STL uploads in local OpenFOAM mode now route to a dedicated `snappyHexMesh` case scaffold instead of being forced through weak Gmsh conversion.
+- `scripts\generate-snappy-stl-case.ps1` builds an inspectable local STL case under `.local-data\snappy-stl-case\` using `surfaceCheck`, `blockMesh`, `surfaceFeatures`, `snappyHexMesh`, and `checkMesh` commands.
+- The tracked `samples\obstacle-box.stl` fixture gives a closed/watertight STL for repeatable local checks.
+
+Important limit: this improves arbitrary STL reliability, but it does not make arbitrary user geometry 100% guaranteed. Bad STL scale, holes, self-intersections, non-manifold edges, and poor feature detail can still fail `surfaceCheck`, `snappyHexMesh`, or `checkMesh`.
 
 ## Phase 3E: Visualization Upgrade Path
 
@@ -111,6 +116,7 @@ Commands:
 ```powershell
 .\scripts\runtime-report.ps1
 .\scripts\dev-openfoam-wsl.ps1 -CheckOnly
+.\scripts\generate-snappy-stl-case.ps1
 .\scripts\dev-openfoam-backend.ps1 -DryRun
 .\scripts\smoke-local-openfoam.ps1 -DryRun
 .\scripts\dev-openfoam-backend.ps1
@@ -133,6 +139,8 @@ The bad-mesh smoke enforces clean failure before solver execution.
 `dev-openfoam-wsl.ps1 -CheckOnly` also reports whether Windows `gmsh` is available, because NACA generation and STEP/STL conversion use the Windows Gmsh executable while OpenFOAM itself runs inside WSL.
 
 `runtime-report.ps1` writes `.local-data/runtime-report.json` with Windows, Git, Python, Node, npm, Gmsh, WSL distro, OpenFOAM version, and required OpenFOAM command availability. Use this file to compare machines before debugging solver behavior.
+
+The WSL/OpenFOAM preflight now checks the STL/snappy toolchain too: `surfaceCheck`, `blockMesh`, `surfaceFeatures`, and `snappyHexMesh`.
 
 ## Phase 5: Usable Local V1 Release
 

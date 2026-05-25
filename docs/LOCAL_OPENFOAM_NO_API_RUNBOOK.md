@@ -80,6 +80,25 @@ Downloaded mesh corpus and generated working validation meshes:
 
 The validation suite writes `.local-data\validation-meshes\validation-suite-report.json` so run IDs, artifact counts, event counts, case types, cell counts, and final coefficients can be reviewed later.
 
+Generate an inspectable snappyHexMesh STL case:
+
+```powershell
+.\scripts\generate-snappy-stl-case.ps1 -StlPath samples\obstacle-box.stl -OutputDir .local-data\snappy-stl-case
+```
+
+That script writes a case folder plus `openfoam-commands.json` with the manual sequence:
+
+```text
+surfaceCheck constant/triSurface/obstacle.stl
+blockMesh
+surfaceFeatures
+snappyHexMesh -overwrite
+checkMesh -allGeometry -allTopology
+simpleFoam
+```
+
+Use this path for STL reliability work. It is stricter and more OpenFOAM-native than forcing arbitrary STL through Gmsh, but it still depends on closed/watertight geometry and passing `checkMesh`. The backend treats default `checkMesh` as the required STL gate and keeps `checkMesh -allGeometry -allTopology` as optional strict diagnostics because strict geometry can flag concave snapped cells even when the baseline mesh is usable.
+
 Full local V1 release acceptance:
 
 ```powershell
@@ -141,6 +160,10 @@ Required runtime tools:
 - `gmshToFoam`
 - `checkMesh`
 - `simpleFoam`
+- `surfaceCheck`
+- `blockMesh`
+- `surfaceFeatures`
+- `snappyHexMesh`
 - `foamToVTK` if VTK export is enabled
 
 ## Manual Step-By-Step Mode
@@ -198,6 +221,7 @@ The repo currently has:
 - automatic PNG previews from OpenFOAM outputs: residual plot from `residuals.csv`, and pressure/velocity binned heatmap previews from ASCII VTK with the solid airfoil/obstacle body filled from patch VTK points
 - WSL-native staging under `/tmp/ai-cfd-workbench/<run_id>/case` for real runs, with copy-back into `.local-data/runs/<run_id>/case`
 - pre-run `.msh` physical-name validation for the `airfoil_2d` template
+- dedicated STL/snappyHexMesh case generation for local OpenFOAM mode
 - OpenFOAM `forceCoeffs` setup for `airfoil_2d` and final coefficient parsing
 - force coefficient CSV/PNG/report/dashboard outputs
 - production `.msh` guidance in `docs/GMSH_AIRFOIL_2D_TEMPLATE.md`
@@ -231,5 +255,6 @@ Next implementation work:
 | Path with spaces fails | Windows-to-WSL quoting issue | Unit-tested path adapter |
 | `checkMesh` fails | Mesh invalid or boundary mismatch | Run fails with `checkMesh.log` artifact |
 | STEP/STL conversion fails before OpenFOAM | Missing Gmsh, missing volume mesh, or missing physical names | Error recommends a cleaner closed STL/STEP or premeshed `.msh` |
+| STL snappy meshing fails | Open STL, self-intersections, bad scale, or inadequate refinement | Inspect `surfaceCheck.log`, `surfaceFeatures.log`, `snappyHexMesh.log`, `checkMesh.log`, and use `scripts\generate-snappy-stl-case.ps1` |
 | Solver diverges | Bad case defaults or mesh quality | Run fails with `solver.log` and zipped case |
 | No visualization | `foamToVTK` or PyVista missing | Still return logs/case zip; PNGs are optional |

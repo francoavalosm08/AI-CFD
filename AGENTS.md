@@ -97,6 +97,28 @@ Do not accept future NACA validation runs as successful if `checkMesh` fails, Op
 - `scripts\release-v1-local.ps1 -IncludeValidationMeshSuite` includes the heavier generated three-mesh suite in the full local acceptance gate.
 - Static PNG previews now use visible VTK values for pressure/velocity color scaling, include a color legend, fill the solid airfoil/obstacle body when patch VTK is available, and overlay the focused body points.
 
+## Latest STL / snappyHexMesh Acceptance (2026-05-25)
+
+- STL uploads in local OpenFOAM mode now bypass weak Gmsh conversion and use a dedicated `snappyHexMesh` scaffold.
+- The scaffold writes `constant/triSurface/obstacle.stl`, `system/blockMeshDict`, `system/surfaceFeaturesDict`, `system/snappyHexMeshDict`, `system/meshQualityDict`, `system/forceCoeffs`, `case-manifest.json`, and `snappy-manifest.json`.
+- The STL command sequence is `surfaceCheck`, `blockMesh`, `surfaceFeatures`, `snappyHexMesh -overwrite`, required default `checkMesh`, optional strict `checkMesh -allGeometry -allTopology`, `simpleFoam`, and optional `foamToVTK -ascii`.
+- `scripts\generate-snappy-stl-case.ps1` generates an inspectable local snappy case from `samples\obstacle-box.stl`.
+- Latest manual WSL mesh check for `samples\obstacle-box.stl`: `surfaceCheck` reported the surface closed/no illegal triangles, `snappyHexMesh` finished without errors, required `checkMesh` reported `Mesh OK` with `12,538` cells, and strict diagnostics reported `96` concave cells in `checkMesh-strict.log`.
+- Latest API dry-run STL smoke passed against a temporary local OpenFOAM backend as run `2b15e970-f1f9-4722-a2bc-d56a10286080`, with 6 artifacts and 6 events.
+- `scripts\dev-openfoam-wsl.ps1 -CheckOnly` and `scripts\runtime-report.ps1` now check/report `surfaceCheck`, `blockMesh`, `surfaceFeatures`, and `snappyHexMesh`.
+- This improves arbitrary STL reliability but does not make arbitrary geometry guaranteed; bad scale, holes, self-intersections, non-manifold topology, and strict mesh diagnostics can still require geometry cleanup.
+
+## Latest Full Local Gate (2026-05-25)
+
+- `py -m pytest backend` -> **112 passed**.
+- `scripts\release-check.ps1` -> **PASS**: backend tests, frontend tests, fake smoke, browser E2E, and local OpenFOAM dry-run smoke.
+- `scripts\release-v1-local.ps1 -SkipReleaseCheck -IncludeValidationMeshSuite` -> **PASS**.
+  - NACA 4412 real run `7d6fc6de-ad5d-4115-8b57-d891dbc9ae5b`: completed with 144 artifacts and 9 events.
+  - Bad airfoil mesh run `b8fe9fef-e8f7-4c62-b941-78df976e60e3`: failed cleanly before OpenFOAM execution.
+  - Cylinder validation run `854a4dcd-7caf-43cb-a285-dc5d76ec6e2a`: completed, 4,348 cells, Cl 2.786664, Cd 3.491001, Cm -0.6969827.
+  - Box validation run `d3c4b2b3-188d-480f-b982-94a573886f72`: completed, 4,456 cells, Cl -153.1205, Cd 3585.132, Cm 75.39039.
+  - NACA 0012 validation run `5e097d9a-7704-4d31-ad49-f81f60eb6b4c`: completed, 58,364 cells, Cl -0.02131213, Cd 0.0132719, Cm -0.005501089.
+
 ## Recent Work (Phase 3 — 2026-05-22)
 
 A prior agent session implemented most of Phase 3 code and docs. Fake mode was preserved; no API/UI contract changes.

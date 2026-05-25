@@ -19,6 +19,7 @@ from app.openfoam.parsers import (
 )
 from app.openfoam.report import write_run_report
 from app.openfoam.runner_types import CommandResult
+from app.openfoam.snappy import build_snappy_stl_case, snappy_openfoam_commands
 from app.openfoam.visualization import write_visualization_previews
 from app.openfoam.wsl import (
     make_wsl_command_executor,
@@ -34,6 +35,7 @@ CommandExecutor = Callable[[str, Path, int], Awaitable[CommandResult]]
 
 class LocalOpenFoamRunner:
     mesh_path_mode = "host"
+    accepts_surface_mesh = True
 
     def __init__(
         self,
@@ -76,22 +78,48 @@ class LocalOpenFoamRunner:
         output = Path(output_dir)
         output.mkdir(parents=True, exist_ok=True)
         case_dir = output / "case"
-        await _emit(emit, "preprocessing", "Validating Gmsh physical names")
-        mesh_validation = validate_msh_physical_names(Path(mesh_path))
-        (output / "mesh-validation.json").write_text(
-            json.dumps(mesh_validation, indent=2),
-            encoding="utf-8",
-        )
-        if not mesh_validation["passed"]:
-            raise RuntimeError("; ".join(mesh_validation["warnings"]))
+        source_path = Path(mesh_path)
+        if source_path.suffix.lower() == ".stl":
+            await _emit(emit, "preprocessing", "Preparing STL surface for snappyHexMesh")
+            mesh_validation = {
+                "case_type": "external_3d_stl_snappy",
+                "confidence": "medium",
+                "passed": True,
+                "physical_names": [],
+                "required_physical_names": [],
+                "missing_required_physical_names": [],
+                "warnings": [
+                    "STL accepted for snappyHexMesh meshing; reliability depends on a closed/watertight surface and checkMesh results."
+                ],
+            }
+            (output / "mesh-validation.json").write_text(
+                json.dumps(mesh_validation, indent=2),
+                encoding="utf-8",
+            )
+            await _emit(emit, "planning", "Building deterministic snappyHexMesh case")
+            manifest = build_snappy_stl_case(
+                spec=self.spec,
+                stl_path=source_path,
+                case_dir=case_dir,
+            )
+            commands = snappy_openfoam_commands()
+        else:
+            await _emit(emit, "preprocessing", "Validating Gmsh physical names")
+            mesh_validation = validate_msh_physical_names(source_path)
+            (output / "mesh-validation.json").write_text(
+                json.dumps(mesh_validation, indent=2),
+                encoding="utf-8",
+            )
+            if not mesh_validation["passed"]:
+                raise RuntimeError("; ".join(mesh_validation["warnings"]))
 
-        await _emit(emit, "planning", "Building deterministic local OpenFOAM case")
-        manifest = build_openfoam_case(
-            spec=self.spec,
-            mesh_path=Path(mesh_path),
-            case_dir=case_dir,
-        )
-        commands = self._commands()
+            await _emit(emit, "planning", "Building deterministic local OpenFOAM case")
+            manifest = build_openfoam_case(
+                spec=self.spec,
+                mesh_path=source_path,
+                case_dir=case_dir,
+            )
+            commands = self._commands()
         command_manifest: dict[str, Any] = {
             "runtime": self.runtime,
             "dry_run": self.dry_run,
@@ -142,7 +170,12 @@ class LocalOpenFoamRunner:
             }
 
         results: list[dict[str, Any]] = []
-        await _emit(emit, "meshing", "Importing uploaded mesh with gmshToFoam")
+        meshing_message = (
+            "Meshing STL surface with snappyHexMesh"
+            if manifest.get("case_type") == "external_3d_stl_snappy"
+            else "Importing uploaded mesh with gmshToFoam"
+        )
+        await _emit(emit, "meshing", meshing_message)
         for command in commands:
             result = await command_executor(
                 command["command"], execution_case_dir, self.timeout_seconds
@@ -232,7 +265,12 @@ class LocalOpenFoamRunner:
 
     def _write_command_log(self, output_dir: Path, name: str, result: CommandResult) -> None:
         filename = {
+            "surface_check": "surfaceCheck.log",
+            "block_mesh": "blockMesh.log",
+            "surface_features": "surfaceFeatures.log",
+            "snappy_hex_mesh": "snappyHexMesh.log",
             "check_mesh": "checkMesh.log",
+            "check_mesh_strict": "checkMesh-strict.log",
             "solve": "solver.log",
         }.get(name, f"{name}.log")
         text = result.stdout

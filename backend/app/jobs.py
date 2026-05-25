@@ -92,6 +92,8 @@ class RunExecutor:
         source = Path(upload.stored_path)
         if upload.kind == "gmsh_mesh":
             return source
+        if upload.kind == "surface_mesh" and getattr(self.foam_agent, "accepts_surface_mesh", False):
+            return source
         if upload.kind in {"surface_mesh", "cad"}:
             return await convert_to_gmsh_mesh(
                 source,

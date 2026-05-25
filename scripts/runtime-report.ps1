@@ -109,7 +109,16 @@ function Get-WslOpenFoamReport {
         $SelectedDistro = Get-DetectedUbuntuDistro
     }
 
-    $commands = @("gmshToFoam", "checkMesh", "simpleFoam", "foamToVTK")
+    $commands = @(
+        "gmshToFoam",
+        "checkMesh",
+        "simpleFoam",
+        "surfaceCheck",
+        "blockMesh",
+        "surfaceFeatures",
+        "snappyHexMesh",
+        "foamToVTK"
+    )
     $bash = @"
 set +u
 source $OpenFoamBashrc >/dev/null 2>&1 || true
@@ -119,6 +128,10 @@ printf '\n'
 if command -v gmshToFoam >/dev/null 2>&1; then printf 'gmshToFoam=available\n'; else printf 'gmshToFoam=missing\n'; fi
 if command -v checkMesh >/dev/null 2>&1; then printf 'checkMesh=available\n'; else printf 'checkMesh=missing\n'; fi
 if command -v simpleFoam >/dev/null 2>&1; then printf 'simpleFoam=available\n'; else printf 'simpleFoam=missing\n'; fi
+if command -v surfaceCheck >/dev/null 2>&1; then printf 'surfaceCheck=available\n'; else printf 'surfaceCheck=missing\n'; fi
+if command -v blockMesh >/dev/null 2>&1; then printf 'blockMesh=available\n'; else printf 'blockMesh=missing\n'; fi
+if command -v surfaceFeatures >/dev/null 2>&1; then printf 'surfaceFeatures=available\n'; else printf 'surfaceFeatures=missing\n'; fi
+if command -v snappyHexMesh >/dev/null 2>&1; then printf 'snappyHexMesh=available\n'; else printf 'snappyHexMesh=missing\n'; fi
 if command -v foamToVTK >/dev/null 2>&1; then printf 'foamToVTK=available\n'; else printf 'foamToVTK=missing\n'; fi
 "@
 

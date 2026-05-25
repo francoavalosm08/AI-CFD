@@ -76,6 +76,8 @@ This is a simplified roadmap for non-software stakeholders, while keeping the ke
 - Dedicated smoke scripts for NACA validation and bad mesh validation.
 - User-facing production `.msh` mesh contract in `docs/GMSH_AIRFOIL_2D_TEMPLATE.md`.
 - Clearer STEP/STL conversion failures for missing Gmsh, missing volume meshes, missing physical names, and bad geometry.
+- Dedicated local OpenFOAM STL path using `snappyHexMesh` scaffolding, `surfaceCheck`, `blockMesh`, `surfaceFeatures`, `snappyHexMesh`, and `checkMesh`.
+- Manual STL case helper: `scripts/generate-snappy-stl-case.ps1`.
 - WSL/OpenFOAM preflight now also reports Windows Gmsh availability for NACA generation and STEP/STL conversion.
 - Browser image inspection for OpenFOAM-generated PNG artifacts.
 
@@ -93,6 +95,7 @@ This is a simplified roadmap for non-software stakeholders, while keeping the ke
 **What is implemented now:**
 - WSL2/OpenFOAM setup checks through `scripts/dev-openfoam-wsl.ps1 -CheckOnly`.
 - Windows Gmsh visibility check in the same preflight.
+- STL/snappyHexMesh command checks in the same preflight.
 - Machine/runtime snapshot through `scripts\runtime-report.ps1`, which writes `.local-data/runtime-report.json`.
 - Dry-run, real NACA, and bad-mesh smoke scripts.
 - Docker/Foam-Agent remains optional parity/advanced infrastructure, not a V1 requirement.
